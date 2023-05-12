@@ -50,10 +50,7 @@ def bin_xml_escape(arg: object) -> str:
 
     def repl(matchobj: Match[str]) -> str:
         i = ord(matchobj.group())
-        if i <= 0xFF:
-            return "#x%02X" % i
-        else:
-            return "#x%04X" % i
+        return "#x%02X" % i if i <= 0xFF else "#x%04X" % i
 
     # The spec range of valid chars is:
     # Char ::= #x9 | #xA | #xD | [#x20-#xD7FF] | [#xE000-#xFFFD] | [#x10000-#x10FFFF]
@@ -74,10 +71,10 @@ def merge_family(left, right) -> None:
     left.update(result)
 
 
-families = {}
-families["_base"] = {"testcase": ["classname", "name"]}
-families["_base_legacy"] = {"testcase": ["file", "line", "url"]}
-
+families = {
+    "_base": {"testcase": ["classname", "name"]},
+    "_base_legacy": {"testcase": ["file", "line", "url"]},
+}
 # xUnit 1.x inherits legacy attributes.
 families["xunit1"] = families["_base"].copy()
 merge_family(families["xunit1"], families["_base_legacy"])
@@ -102,10 +99,10 @@ class _NodeReporter:
         self.nodes.append(node)
 
     def add_property(self, name: str, value: object) -> None:
-        self.properties.append((str(name), bin_xml_escape(value)))
+        self.properties.append((name, bin_xml_escape(value)))
 
     def add_attribute(self, name: str, value: object) -> None:
-        self.attrs[str(name)] = bin_xml_escape(value)
+        self.attrs[name] = bin_xml_escape(value)
 
     def make_properties_node(self) -> Optional[ET.Element]:
         """Return a Junit node containing custom properties, if any."""
@@ -132,18 +129,17 @@ class _NodeReporter:
         if hasattr(testreport, "url"):
             attrs["url"] = testreport.url
         self.attrs = attrs
-        self.attrs.update(existing_attrs)  # Restore any user-defined attributes.
+        self.attrs |= existing_attrs
 
         # Preserve legacy testcase behavior.
         if self.family == "xunit1":
             return
 
-        # Filter out attributes not permitted by this test family.
-        # Including custom attributes because they are not valid here.
-        temp_attrs = {}
-        for key in self.attrs.keys():
-            if key in families[self.family]["testcase"]:
-                temp_attrs[key] = self.attrs[key]
+        temp_attrs = {
+            key: self.attrs[key]
+            for key in self.attrs
+            if key in families[self.family]["testcase"]
+        }
         self.attrs = temp_attrs
 
     def to_xml(self) -> ET.Element:
@@ -202,10 +198,7 @@ class _NodeReporter:
             reprcrash: Optional[ReprFileLocation] = getattr(
                 report.longrepr, "reprcrash", None
             )
-            if reprcrash is not None:
-                message = reprcrash.message
-            else:
-                message = str(report.longrepr)
+            message = reprcrash.message if reprcrash is not None else str(report.longrepr)
             message = bin_xml_escape(message)
             self._add_simple("failure", message, str(report.longrepr))
 
@@ -222,11 +215,7 @@ class _NodeReporter:
         reprcrash: Optional[ReprFileLocation] = getattr(
             report.longrepr, "reprcrash", None
         )
-        if reprcrash is not None:
-            reason = reprcrash.message
-        else:
-            reason = str(report.longrepr)
-
+        reason = reprcrash.message if reprcrash is not None else str(report.longrepr)
         if report.when == "teardown":
             msg = f'failed on teardown with "{reason}"'
         else:
@@ -441,8 +430,7 @@ def pytest_configure(config: Config) -> None:
 
 
 def pytest_unconfigure(config: Config) -> None:
-    xml = config.stash.get(xml_key, None)
-    if xml:
+    if xml := config.stash.get(xml_key, None):
         del config.stash[xml_key]
         config.pluginmanager.unregister(xml)
 
@@ -562,7 +550,7 @@ class LogXML:
                 # The following vars are needed when xdist plugin is used.
                 report_wid = getattr(report, "worker_id", None)
                 report_ii = getattr(report, "item_index", None)
-                close_report = next(
+                if close_report := next(
                     (
                         rep
                         for rep in self.open_reports
@@ -573,8 +561,7 @@ class LogXML:
                         )
                     ),
                     None,
-                )
-                if close_report:
+                ):
                     # We need to open new testcase in case we have failure in
                     # call and error in teardown in order to follow junit
                     # schema.
@@ -602,7 +589,7 @@ class LogXML:
             self.finalize(report)
             report_wid = getattr(report, "worker_id", None)
             report_ii = getattr(report, "item_index", None)
-            close_report = next(
+            if close_report := next(
                 (
                     rep
                     for rep in self.open_reports
@@ -613,8 +600,7 @@ class LogXML:
                     )
                 ),
                 None,
-            )
-            if close_report:
+            ):
                 self.open_reports.remove(close_report)
 
     def update_testcase_duration(self, report: TestReport) -> None:

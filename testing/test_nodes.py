@@ -164,4 +164,4 @@ def test_failure_with_changed_cwd(pytester: Pytester) -> None:
     """
     )
     result = pytester.runpytest()
-    result.stdout.fnmatch_lines([str(p) + ":*: AssertionError", "*1 failed in *"])
+    result.stdout.fnmatch_lines([f"{str(p)}:*: AssertionError", "*1 failed in *"])

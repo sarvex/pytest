@@ -26,8 +26,7 @@ def subst_path_windows(filepath: Path):
     subprocess.check_call(args)
     assert os.path.exists(drive)
     try:
-        filename = Path(drive, os.sep, basename)
-        yield filename
+        yield Path(drive, os.sep, basename)
     finally:
         args = ["subst", "/D", drive]
         subprocess.check_call(args)
@@ -41,8 +40,7 @@ def subst_path_linux(filepath: Path):
     target = directory / ".." / "sub2"
     os.symlink(str(directory), str(target), target_is_directory=True)
     try:
-        filename = target / basename
-        yield filename
+        yield target / basename
     finally:
         # We don't need to unlink (it's all in the tempdir).
         pass
@@ -62,10 +60,7 @@ def test_link_resolve(pytester: Pytester) -> None:
         )
     )
 
-    subst = subst_path_linux
-    if sys.platform == "win32":
-        subst = subst_path_windows
-
+    subst = subst_path_windows if sys.platform == "win32" else subst_path_linux
     with subst(p) as subst_p:
         result = pytester.runpytest(str(subst_p), "-v")
         # i.e.: Make sure that the error is reported as a relative path, not as a

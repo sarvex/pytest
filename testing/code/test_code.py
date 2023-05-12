@@ -144,10 +144,7 @@ def test_frame_getargs() -> None:
 class TestExceptionInfo:
     def test_bad_getsource(self) -> None:
         try:
-            if False:
-                pass
-            else:
-                assert False
+            assert False
         except AssertionError:
             exci = ExceptionInfo.from_current()
         assert exci.getrepr()
@@ -160,10 +157,7 @@ class TestExceptionInfo:
 class TestTracebackEntry:
     def test_getsource(self) -> None:
         try:
-            if False:
-                pass
-            else:
-                assert False
+            assert False
         except AssertionError:
             exci = ExceptionInfo.from_current()
         entry = exci.traceback[0]

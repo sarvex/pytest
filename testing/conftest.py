@@ -52,12 +52,10 @@ def pytest_collection_modifyitems(items):
                 else:
                     slow_items.append(item)
                 item.add_marker(pytest.mark.slow)
+            elif marker := item.get_closest_marker("slow"):
+                slowest_items.append(item)
             else:
-                marker = item.get_closest_marker("slow")
-                if marker:
-                    slowest_items.append(item)
-                else:
-                    fast_items.append(item)
+                fast_items.append(item)
 
     items[:] = fast_items + neutral_items + slow_items + slowest_items
 

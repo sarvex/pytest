@@ -32,13 +32,14 @@ def mocked_doctest_runner(monkeypatch):
 
     monkeypatch.setattr("doctest._OutputRedirectingPdb", MockedPdb)
 
+
+
     class MyDocTestRunner(doctest.DocTestRunner):
         def report_failure(self, out, test, example, got):
             raise AssertionError(
-                "'{}' evaluates to '{}', not '{}'".format(
-                    example.source.strip(), got.strip(), example.want.strip()
-                )
+                f"'{example.source.strip()}' evaluates to '{got.strip()}', not '{example.want.strip()}'"
             )
+
 
     return MyDocTestRunner()
 
@@ -282,10 +283,10 @@ class TestApprox:
         assert repr(approx(1.0, rel=inf)) == "1.0 ± inf"
 
         # Dictionaries aren't ordered, so we need to check both orders.
-        assert repr(approx({"a": 1.0, "b": 2.0})) in (
+        assert repr(approx({"a": 1.0, "b": 2.0})) in {
             "approx({'a': 1.0 ± 1.0e-06, 'b': 2.0 ± 2.0e-06})",
             "approx({'b': 2.0 ± 2.0e-06, 'a': 1.0 ± 1.0e-06})",
-        )
+        }
 
     def test_repr_complex_numbers(self):
         assert repr(approx(inf + 1j)) == "(inf+1j)"
@@ -326,9 +327,9 @@ class TestApprox:
 
     def test_operator_overloading(self):
         assert 1 == approx(1, rel=1e-6, abs=1e-12)
-        assert not (1 != approx(1, rel=1e-6, abs=1e-12))
+        assert approx(1, rel=1e-6, abs=1e-12) == 1
         assert 10 != approx(1, rel=1e-6, abs=1e-12)
-        assert not (10 == approx(1, rel=1e-6, abs=1e-12))
+        assert approx(1, rel=1e-6, abs=1e-12) != 10
 
     def test_exactly_equal(self):
         examples = [
@@ -374,14 +375,14 @@ class TestApprox:
     ) -> None:
         # Negative tolerances are not allowed.
         with pytest.raises(ValueError):
-            1.1 == approx(1, rel, abs)
+            approx(1, rel, abs) == 1.1
 
     def test_negative_tolerance_message(self):
         # Error message for negative tolerance should include the value.
         with pytest.raises(ValueError, match="-3"):
-            0 == approx(1, abs=-3)
+            approx(1, abs=-3) == 0
         with pytest.raises(ValueError, match="-3"):
-            0 == approx(1, rel=-3)
+            approx(1, rel=-3) == 0
 
     def test_inf_tolerance(self):
         # Everything should be equal if the tolerance is infinite.
@@ -396,17 +397,17 @@ class TestApprox:
         # If the relative tolerance is zero but the expected value is infinite,
         # the actual tolerance is a NaN, which should be an error.
         with pytest.raises(ValueError):
-            1 == approx(0, rel=inf, abs=0.0)
+            approx(0, rel=inf, abs=0.0) == 1
         with pytest.raises(ValueError):
-            1 == approx(0, rel=inf, abs=inf)
+            approx(0, rel=inf, abs=inf) == 1
 
     def test_nan_tolerance(self) -> None:
         with pytest.raises(ValueError):
-            1.1 == approx(1, rel=nan)
+            approx(1, rel=nan) == 1.1
         with pytest.raises(ValueError):
-            1.1 == approx(1, abs=nan)
+            approx(1, abs=nan) == 1.1
         with pytest.raises(ValueError):
-            1.1 == approx(1, rel=nan, abs=nan)
+            approx(1, rel=nan, abs=nan) == 1.1
 
     def test_reasonable_defaults(self):
         # Whatever the defaults are, they should work for numbers close to 1

@@ -340,7 +340,7 @@ def test_parametrize_with_module(pytester: Pytester) -> None:
     )
     rec = pytester.inline_run()
     passed, skipped, fail = rec.listoutcomes()
-    expected_id = "test_func[" + pytest.__name__ + "]"
+    expected_id = f"test_func[{pytest.__name__}]"
     assert passed[0].nodeid.split("::")[-1] == expected_id
 
 
@@ -399,7 +399,7 @@ def test_parametrized_collected_from_command_line(pytester: Pytester) -> None:
     """
     )
     file_name = os.path.basename(py_file)
-    rec = pytester.inline_run(file_name + "::" + "test_func")
+    rec = pytester.inline_run(f"{file_name}::test_func")
     rec.assertoutcome(passed=3)
 
 

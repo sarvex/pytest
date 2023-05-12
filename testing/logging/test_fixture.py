@@ -5,7 +5,7 @@ from _pytest.logging import caplog_records_key
 from _pytest.pytester import Pytester
 
 logger = logging.getLogger(__name__)
-sublogger = logging.getLogger(__name__ + ".baz")
+sublogger = logging.getLogger(f"{__name__}.baz")
 
 
 def test_fixture_help(pytester: Pytester) -> None:

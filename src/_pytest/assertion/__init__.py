@@ -103,11 +103,7 @@ def install_importhook(config: Config) -> rewrite.AssertionRewritingHook:
 
 
 def pytest_collection(session: "Session") -> None:
-    # This hook is only called when test modules are collected
-    # so for example not in the managing process of pytest-xdist
-    # (which does not collect test modules).
-    assertstate = session.config.stash.get(assertstate_key, None)
-    if assertstate:
+    if assertstate := session.config.stash.get(assertstate_key, None):
         if assertstate.hook is not None:
             assertstate.hook.set_session(session)
 
@@ -169,8 +165,7 @@ def pytest_runtest_protocol(item: Item) -> Generator[None, None, None]:
 
 
 def pytest_sessionfinish(session: "Session") -> None:
-    assertstate = session.config.stash.get(assertstate_key, None)
-    if assertstate:
+    if assertstate := session.config.stash.get(assertstate_key, None):
         if assertstate.hook is not None:
             assertstate.hook.set_session(None)
 

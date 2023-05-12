@@ -452,11 +452,11 @@ def test_module_level_pytestmark(pytester: Pytester) -> None:
 
 
 class TestTrialUnittest:
-    def setup_class(cls):
-        cls.ut = pytest.importorskip("twisted.trial.unittest")
+    def setup_class(self):
+        self.ut = pytest.importorskip("twisted.trial.unittest")
         # on windows trial uses a socket for a reactor and apparently doesn't close it properly
         # https://twistedmatrix.com/trac/ticket/9227
-        cls.ignore_unclosed_socket_warning = ("-W", "always")
+        self.ignore_unclosed_socket_warning = ("-W", "always")
 
     def test_trial_testcase_runtest_not_collected(self, pytester: Pytester) -> None:
         pytester.makepyfile(
@@ -1271,7 +1271,7 @@ def test_pdb_teardown_skipped(
     )
     result = pytester.runpytest_inprocess("--pdb")
     result.stdout.fnmatch_lines("* 1 skipped in *")
-    assert tracked == []
+    assert not tracked
 
 
 def test_async_support(pytester: Pytester) -> None:

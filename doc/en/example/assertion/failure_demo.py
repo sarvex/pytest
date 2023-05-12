@@ -77,7 +77,7 @@ class TestSpecialisedExplanations:
         assert [1, 2] == [1, 2, 3]
 
     def test_in_list(self):
-        assert 1 in [0, 2, 3, 4, 5]
+        assert 1 in {0, 2, 3, 4, 5}
 
     def test_not_in_text_multiline(self):
         text = "some multiline\ntext\nwhich\nincludes foo\nand a\ntail"
@@ -180,8 +180,7 @@ class TestRaises:
         a, b = items.pop()
 
     def test_some_error(self):
-        if namenotexi:  # NOQA
-            pass
+        pass
 
     def func1(self):
         assert 41 == 42

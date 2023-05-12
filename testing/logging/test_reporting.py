@@ -243,7 +243,7 @@ def test_log_cli_default_level_multiple_tests(
     pytester: Pytester, request: FixtureRequest
 ) -> None:
     """Ensure we reset the first newline added by the live logger between tests"""
-    filename = request.node.name + ".py"
+    filename = f"{request.node.name}.py"
     pytester.makepyfile(
         """
         import logging
@@ -281,7 +281,7 @@ def test_log_cli_default_level_sections(
 ) -> None:
     """Check that with live logging enable we are printing the correct headers during
     start/setup/call/teardown/finish."""
-    filename = request.node.name + ".py"
+    filename = f"{request.node.name}.py"
     pytester.makeconftest(
         """
         import pytest
@@ -357,7 +357,7 @@ def test_live_logs_unknown_sections(
 ) -> None:
     """Check that with live logging enable we are printing the correct headers during
     start/setup/call/teardown/finish."""
-    filename = request.node.name + ".py"
+    filename = f"{request.node.name}.py"
     pytester.makeconftest(
         """
         import pytest
@@ -421,7 +421,7 @@ def test_sections_single_new_line_after_test_outcome(
 ) -> None:
     """Check that only a single new line is written between log messages during
     teardown/finish."""
-    filename = request.node.name + ".py"
+    filename = f"{request.node.name}.py"
     pytester.makeconftest(
         """
         import pytest
@@ -620,13 +620,13 @@ def test_log_cli_auto_enable(pytester: Pytester, cli_args: str) -> None:
                 "=* 1 passed in *=",
             ]
         )
-        assert "INFO" not in stdout
     else:
         result.stdout.fnmatch_lines(
             ["*test_log_cli_auto_enable*100%*", "=* 1 passed in *="]
         )
-        assert "INFO" not in stdout
         assert "WARNING" not in stdout
+
+    assert "INFO" not in stdout
 
 
 def test_log_file_cli(pytester: Pytester) -> None:
@@ -855,7 +855,7 @@ def test_live_logging_suspends_capture(
     handler = _LiveLoggingStreamHandler(out_file, capture_manager)
     handler.set_when("call")
 
-    logger = logging.getLogger(__name__ + ".test_live_logging_suspends_capture")
+    logger = logging.getLogger(f"{__name__}.test_live_logging_suspends_capture")
     logger.addHandler(handler)
     request.addfinalizer(partial(logger.removeHandler, handler))
 

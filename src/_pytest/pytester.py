@@ -170,16 +170,15 @@ class LsofFdLeakChecker:
         lines2 = self.get_open_files()
 
         new_fds = {t[0] for t in lines2} - {t[0] for t in lines1}
-        leaked_files = [t for t in lines2 if t[0] in new_fds]
-        if leaked_files:
+        if leaked_files := [t for t in lines2 if t[0] in new_fds]:
             error = [
-                "***** %s FD leakage detected" % len(leaked_files),
+                f"***** {len(leaked_files)} FD leakage detected",
                 *(str(f) for f in leaked_files),
                 "*** Before:",
                 *(str(f) for f in lines1),
                 "*** After:",
                 *(str(f) for f in lines2),
-                "***** %s FD leakage detected" % len(leaked_files),
+                f"***** {len(leaked_files)} FD leakage detected",
                 "*** function %s:%s: %s " % item.location,
                 "See issue #2366",
             ]
@@ -304,8 +303,7 @@ class HookRecorder:
             if call._name == name:
                 del self.calls[i]
                 return call
-        lines = [f"could not find call {name!r}, in:"]
-        lines.extend(["  %s" % x for x in self.calls])
+        lines = [f"could not find call {name!r}, in:", *[f"  {x}" for x in self.calls]]
         fail("\n".join(lines))
 
     def getcall(self, name: str) -> RecordedHookCall:
@@ -691,10 +689,7 @@ class Pytester:
         self._mod_collections: WeakKeyDictionary[
             Collector, List[Union[Item, Collector]]
         ] = WeakKeyDictionary()
-        if request.function:
-            name: str = request.function.__name__
-        else:
-            name = request.node.name
+        name = request.function.__name__ if request.function else request.node.name
         self._name = name
         self._path: Path = tmp_path_factory.mktemp(name, numbered=True)
         self.plugins: List[Union[str, _PluggyPlugin]] = []
@@ -938,7 +933,7 @@ class Pytester:
         if name is None:
             func_name = self._name
             maybe_dir = example_dir / func_name
-            maybe_file = example_dir / (func_name + ".py")
+            maybe_file = example_dir / f"{func_name}.py"
 
             if maybe_dir.is_dir():
                 example_path = maybe_dir
@@ -1081,13 +1076,12 @@ class Pytester:
         plugins = list(plugins)
         finalizers = []
         try:
-            # Any sys.module or sys.path changes done while running pytest
-            # inline should be reverted after the test run completes to avoid
-            # clashing with later inline tests run within the same pytest test,
-            # e.g. just because they use matching test module names.
-            finalizers.append(self.__take_sys_modules_snapshot().restore)
-            finalizers.append(SysPathsSnapshot().restore)
-
+            finalizers.extend(
+                (
+                    self.__take_sys_modules_snapshot().restore,
+                    SysPathsSnapshot().restore,
+                )
+            )
             # Important note:
             # - our tests should not leave any other references/registrations
             #   laying around other than possibly loaded test modules
@@ -1127,31 +1121,25 @@ class Pytester:
     ) -> RunResult:
         """Return result of running pytest in-process, providing a similar
         interface to what self.runpytest() provides."""
-        syspathinsert = kwargs.pop("syspathinsert", False)
-
-        if syspathinsert:
+        if syspathinsert := kwargs.pop("syspathinsert", False):
             self.syspathinsert()
         now = timing.time()
         capture = _get_multicapture("sys")
         capture.start_capturing()
         try:
-            try:
-                reprec = self.inline_run(*args, **kwargs)
-            except SystemExit as e:
-                ret = e.args[0]
-                try:
-                    ret = ExitCode(e.args[0])
-                except ValueError:
-                    pass
+            reprec = self.inline_run(*args, **kwargs)
+        except SystemExit as e:
+            ret = e.args[0]
+            with contextlib.suppress(ValueError):
+                ret = ExitCode(e.args[0])
+            class reprec:  # type: ignore
+                ret = ret
 
-                class reprec:  # type: ignore
-                    ret = ret
+        except Exception:
+            traceback.print_exc()
 
-            except Exception:
-                traceback.print_exc()
-
-                class reprec:  # type: ignore
-                    ret = ExitCode(3)
+            class reprec:  # type: ignore
+                ret = ExitCode(3)
 
         finally:
             out, err = capture.readouterr()
@@ -1186,7 +1174,7 @@ class Pytester:
             if str(x).startswith("--basetemp"):
                 break
         else:
-            new_args.append("--basetemp=%s" % self.path.parent.joinpath("basetemp"))
+            new_args.append(f'--basetemp={self.path.parent.joinpath("basetemp")}')
         return new_args
 
     def parseconfig(self, *args: Union[str, "os.PathLike[str]"]) -> Config:
@@ -1300,10 +1288,14 @@ class Pytester:
         """
         if modcol not in self._mod_collections:
             self._mod_collections[modcol] = list(modcol.collect())
-        for colitem in self._mod_collections[modcol]:
-            if colitem.name == name:
-                return colitem
-        return None
+        return next(
+            (
+                colitem
+                for colitem in self._mod_collections[modcol]
+                if colitem.name == name
+            ),
+            None,
+        )
 
     def popen(
         self,
@@ -1326,9 +1318,7 @@ class Pytester:
         )
         kw["env"] = env
 
-        if stdin is self.CLOSE_STDIN:
-            kw["stdin"] = subprocess.PIPE
-        elif isinstance(stdin, bytes):
+        if stdin is self.CLOSE_STDIN or isinstance(stdin, bytes):
             kw["stdin"] = subprocess.PIPE
         else:
             kw["stdin"] = stdin
@@ -1464,9 +1454,8 @@ class Pytester:
         """
         __tracebackhide__ = True
         p = make_numbered_dir(root=self.path, prefix="runpytest-", mode=0o700)
-        args = ("--basetemp=%s" % p,) + args
-        plugins = [x for x in self.plugins if isinstance(x, str)]
-        if plugins:
+        args = (f"--basetemp={p}", ) + args
+        if plugins := [x for x in self.plugins if isinstance(x, str)]:
             args = ("-p", plugins[0]) + args
         args = self._getpytestargs() + args
         return self.run(*args, timeout=timeout)
@@ -1669,7 +1658,7 @@ class LineMatcher:
                     started = True
                     break
                 elif match_func(nextline, line):
-                    self._log("%s:" % match_nickname, repr(line))
+                    self._log(f"{match_nickname}:", repr(line))
                     self._log(
                         "{:>{width}}".format("with:", width=wnick), repr(nextline)
                     )

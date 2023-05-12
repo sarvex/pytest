@@ -75,9 +75,7 @@ class Scope(Enum):
             scope = Scope(scope_name)
         except ValueError:
             fail(
-                "{} {}got an unexpected scope value '{}'".format(
-                    descr, f"from {where} " if where else "", scope_name
-                ),
+                f"""{descr} {f"from {where} " if where else ""}got an unexpected scope value '{scope_name}'""",
                 pytrace=False,
             )
         return scope

@@ -43,12 +43,10 @@ def parse_changelog(tag_name):
     consuming_version = False
     version_lines = []
     for line in changelog_lines:
-        m = title_regex.match(line)
-        if m:
+        if m := title_regex.match(line):
             # found the version we want: start to consume lines until we find the next version title
-            if m.group(1) == tag_name:
+            if m[1] == tag_name:
                 consuming_version = True
-            # found a new version title while parsing the version we want: break out
             elif consuming_version:
                 break
         if consuming_version:

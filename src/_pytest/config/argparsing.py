@@ -57,9 +57,8 @@ class Parser:
         self.extra_info: Dict[str, Any] = {}
 
     def processoption(self, option: "Argument") -> None:
-        if self._processopt:
-            if option.dest:
-                self._processopt(option)
+        if self._processopt and option.dest:
+            self._processopt(option)
 
     def getgroup(
         self, name: str, description: str = "", after: Optional[str] = None
@@ -209,10 +208,7 @@ class ArgumentError(Exception):
         self.option_id = str(option)
 
     def __str__(self) -> str:
-        if self.option_id:
-            return f"option {self.option_id}: {self.msg}"
-        else:
-            return self.msg
+        return f"option {self.option_id}: {self.msg}" if self.option_id else self.msg
 
 
 class Argument:
@@ -263,8 +259,7 @@ class Argument:
         except KeyError:
             pass
         self._set_opt_strings(names)
-        dest: Optional[str] = attrs.get("dest")
-        if dest:
+        if dest := attrs.get("dest"):
             self.dest = dest
         elif self._long_opts:
             self.dest = self._long_opts[0][2:].replace("-", "_")
@@ -307,34 +302,34 @@ class Argument:
                     self,
                 )
             elif len(opt) == 2:
-                if not (opt[0] == "-" and opt[1] != "-"):
+                if opt[0] != "-" or opt[1] == "-":
                     raise ArgumentError(
                         "invalid short option string %r: "
                         "must be of the form -x, (x any non-dash char)" % opt,
                         self,
                     )
                 self._short_opts.append(opt)
+            elif opt[:2] != "--" or opt[2] == "-":
+                raise ArgumentError(
+                    "invalid long option string %r: "
+                    "must start with --, followed by non-dash" % opt,
+                    self,
+                )
             else:
-                if not (opt[0:2] == "--" and opt[2] != "-"):
-                    raise ArgumentError(
-                        "invalid long option string %r: "
-                        "must start with --, followed by non-dash" % opt,
-                        self,
-                    )
                 self._long_opts.append(opt)
 
     def __repr__(self) -> str:
         args: List[str] = []
         if self._short_opts:
-            args += ["_short_opts: " + repr(self._short_opts)]
+            args += [f"_short_opts: {repr(self._short_opts)}"]
         if self._long_opts:
-            args += ["_long_opts: " + repr(self._long_opts)]
-        args += ["dest: " + repr(self.dest)]
+            args += [f"_long_opts: {repr(self._long_opts)}"]
+        args += [f"dest: {repr(self.dest)}"]
         if hasattr(self, "type"):
-            args += ["type: " + repr(self.type)]
+            args += [f"type: {repr(self.type)}"]
         if hasattr(self, "default"):
-            args += ["default: " + repr(self.default)]
-        return "Argument({})".format(", ".join(args))
+            args += [f"default: {repr(self.default)}"]
+        return f'Argument({", ".join(args)})'
 
 
 class OptionGroup:
@@ -362,11 +357,10 @@ class OptionGroup:
         results in help showing ``--two-words`` only, but ``--twowords`` gets
         accepted **and** the automatic destination is in ``args.twowords``.
         """
-        conflict = set(optnames).intersection(
+        if conflict := set(optnames).intersection(
             name for opt in self.options for name in opt.names()
-        )
-        if conflict:
-            raise ValueError("option names %s already added" % conflict)
+        ):
+            raise ValueError(f"option names {conflict} already added")
         option = Argument(*optnames, **attrs)
         self._addoption_instance(option, shortupper=False)
 
@@ -424,9 +418,8 @@ class MyOptionParser(argparse.ArgumentParser):
         if unrecognized:
             for arg in unrecognized:
                 if arg and arg[0] == "-":
-                    lines = ["unrecognized arguments: %s" % (" ".join(unrecognized))]
-                    for k, v in sorted(self.extra_info.items()):
-                        lines.append(f"  {k}: {v}")
+                    lines = [f'unrecognized arguments: {" ".join(unrecognized)}']
+                    lines.extend(f"  {k}: {v}" for k, v in sorted(self.extra_info.items()))
                     self.error("\n".join(lines))
             getattr(parsed, FILE_OR_DIR).extend(unrecognized)
         return parsed
@@ -439,7 +432,7 @@ class MyOptionParser(argparse.ArgumentParser):
         ) -> Optional[Tuple[Optional[argparse.Action], str, Optional[str]]]:
             if not arg_string:
                 return None
-            if not arg_string[0] in self.prefix_chars:
+            if arg_string[0] not in self.prefix_chars:
                 return None
             if arg_string in self._option_string_actions:
                 action = self._option_string_actions[arg_string]
@@ -462,12 +455,12 @@ class MyOptionParser(argparse.ArgumentParser):
                 elif len(option_tuples) == 1:
                     (option_tuple,) = option_tuples
                     return option_tuple
-            if self._negative_number_matcher.match(arg_string):
-                if not self._has_negative_number_optionals:
-                    return None
-            if " " in arg_string:
+            if (
+                self._negative_number_matcher.match(arg_string)
+                and not self._has_negative_number_optionals
+            ):
                 return None
-            return None, arg_string, None
+            return None if " " in arg_string else (None, arg_string, None)
 
 
 class DropShorterLongHelpFormatter(argparse.HelpFormatter):
@@ -488,8 +481,7 @@ class DropShorterLongHelpFormatter(argparse.HelpFormatter):
         orgstr = super()._format_action_invocation(action)
         if orgstr and orgstr[0] != "-":  # only optional arguments
             return orgstr
-        res: Optional[str] = getattr(action, "_formatted_action_invocation", None)
-        if res:
+        if res := getattr(action, "_formatted_action_invocation", None):
             return res
         options = orgstr.split(", ")
         if len(options) == 2 and (len(options[0]) == 2 or len(options[1]) == 2):
@@ -502,9 +494,7 @@ class DropShorterLongHelpFormatter(argparse.HelpFormatter):
             if len(option) == 2 or option[2] == " ":
                 continue
             if not option.startswith("--"):
-                raise ArgumentError(
-                    'long optional argument without "--": [%s]' % (option), option
-                )
+                raise ArgumentError(f'long optional argument without "--": [{option}]', option)
             xxoption = option[2:]
             shortened = xxoption.replace("-", "")
             if shortened not in short_long or len(short_long[shortened]) < len(

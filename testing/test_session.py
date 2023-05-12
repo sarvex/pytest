@@ -53,7 +53,7 @@ class SessionTests:
         values = reprec.getfailedcollections()
         assert len(values) == 1
         out = str(values[0].longrepr)
-        assert out.find("does_not_work") != -1
+        assert "does_not_work" in out
 
     def test_raises_output(self, pytester: Pytester) -> None:
         reprec = pytester.inline_runsource(
@@ -73,7 +73,7 @@ class SessionTests:
         values = reprec.getfailedcollections()
         assert len(values) == 1
         out = str(values[0].longrepr)
-        assert out.find("not python") != -1
+        assert "not python" in out
 
     def test_exit_first_problem(self, pytester: Pytester) -> None:
         reprec = pytester.inline_runsource(

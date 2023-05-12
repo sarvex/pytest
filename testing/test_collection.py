@@ -51,7 +51,7 @@ class TestCollector:
 
         fn3 = pytester.collect_by_name(modcol, "test_fail")
         assert isinstance(fn3, pytest.Function)
-        assert not (fn1 == fn3)
+        assert fn1 != fn3
         assert fn1 != fn3
 
         for fn in fn1, fn2, fn3:
@@ -261,14 +261,14 @@ class TestCollectFS:
         # collects the tests
         for dirname in ("env", "gui", "uts"):
             items, reprec = pytester.inline_genitems(tmp_path.joinpath(dirname))
-            assert [x.name for x in items] == ["test_%s" % dirname]
+            assert [x.name for x in items] == [f"test_{dirname}"]
 
         # changing cwd to each subdirectory and running pytest without
         # arguments collects the tests in that directory normally
         for dirname in ("env", "gui", "uts"):
             monkeypatch.chdir(pytester.path.joinpath(dirname))
             items, reprec = pytester.inline_genitems()
-            assert [x.name for x in items] == ["test_%s" % dirname]
+            assert [x.name for x in items] == [f"test_{dirname}"]
 
 
 class TestCollectPluginHookRelay:
@@ -523,8 +523,8 @@ class TestSession:
                     pass
         """
         )
-        normid = p.name + "::TestClass::test_method"
-        for id in [p.name, p.name + "::TestClass", normid]:
+        normid = f"{p.name}::TestClass::test_method"
+        for id in [p.name, f"{p.name}::TestClass", normid]:
             items, hookrec = pytester.inline_genitems(id)
             assert len(items) == 1
             assert items[0].name == "test_method"
@@ -629,7 +629,7 @@ class TestSession:
                     pass
         """
         )
-        arg = p.name + "::TestClass::test_method"
+        arg = f"{p.name}::TestClass::test_method"
         items, hookrec = pytester.inline_genitems(arg)
         assert len(items) == 1
         (item,) = items
@@ -685,7 +685,7 @@ class Test_genitems:
                 pass
         """
         )
-        shutil.copy(p, p.parent / (p.stem + "2" + ".py"))
+        shutil.copy(p, p.parent / f"{p.stem}2.py")
         items, reprec = pytester.inline_genitems(p.parent)
         assert len(items) == 4
         for numi, i in enumerate(items):
@@ -793,7 +793,7 @@ def test_matchnodes_two_collections_same_file(pytester: Pytester) -> None:
     result = pytester.runpytest()
     assert result.ret == 0
     result.stdout.fnmatch_lines(["*2 passed*"])
-    res = pytester.runpytest("%s::item2" % p.name)
+    res = pytester.runpytest(f"{p.name}::item2")
     res.stdout.fnmatch_lines(["*1 passed*"])
 
 
@@ -860,7 +860,7 @@ class TestNodeKeywords:
         )
         num_matching_tests = 4
         for expression in ("specifictopic", "SPECIFICTOPIC", "SpecificTopic"):
-            reprec = pytester.inline_run("-k " + expression)
+            reprec = pytester.inline_run(f"-k {expression}")
             reprec.assertoutcome(passed=num_matching_tests, failed=0)
 
     def test_duplicates_handled_correctly(self, pytester: Pytester) -> None:
@@ -1262,7 +1262,7 @@ def test_collect_symlink_out_of_tree(pytester: Pytester) -> None:
     symlink_to_sub = out_of_tree.joinpath("symlink_to_sub")
     symlink_or_skip(sub, symlink_to_sub)
     os.chdir(sub)
-    result = pytester.runpytest("-vs", "--rootdir=%s" % sub, symlink_to_sub)
+    result = pytester.runpytest("-vs", f"--rootdir={sub}", symlink_to_sub)
     result.stdout.fnmatch_lines(
         [
             # Should not contain "sub/"!

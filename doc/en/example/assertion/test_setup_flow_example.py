@@ -3,11 +3,11 @@ def setup_module(module):
 
 
 class TestStateFullThing:
-    def setup_class(cls):
-        cls.classcount += 1
+    def setup_class(self):
+        self.classcount += 1
 
-    def teardown_class(cls):
-        cls.classcount -= 1
+    def teardown_class(self):
+        self.classcount -= 1
 
     def setup_method(self, method):
         self.id = eval(method.__name__[5:])

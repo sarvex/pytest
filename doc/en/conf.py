@@ -192,7 +192,7 @@ html_theme = "flask"
 html_title = "pytest documentation"
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
-html_short_title = "pytest-%s" % release
+html_short_title = f"pytest-{release}"
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
@@ -398,17 +398,20 @@ def configure_logging(app: "sphinx.application.Sphinx") -> None:
     import sphinx.util.logging
     import logging
 
+
+
     class WarnLogFilter(logging.Filter):
         def filter(self, record: logging.LogRecord) -> bool:
             """Ignore warnings about missing include with "only" directive.
 
             Ref: https://github.com/sphinx-doc/sphinx/issues/2150."""
-            if (
-                record.msg.startswith('Problems with "include" directive path:')
-                and "_changelog_towncrier_draft.rst" in record.msg
-            ):
-                return False
-            return True
+            return (
+                not record.msg.startswith(
+                    'Problems with "include" directive path:'
+                )
+                or "_changelog_towncrier_draft.rst" not in record.msg
+            )
+
 
     logger = logging.getLogger(sphinx.util.logging.NAMESPACE)
     warn_handler = [x for x in logger.handlers if x.level == logging.WARNING]

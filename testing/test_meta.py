@@ -16,7 +16,9 @@ def _modules() -> List[str]:
     pytest_pkg: str = _pytest.__path__  # type: ignore
     return sorted(
         n
-        for _, n, _ in pkgutil.walk_packages(pytest_pkg, prefix=_pytest.__name__ + ".")
+        for _, n, _ in pkgutil.walk_packages(
+            pytest_pkg, prefix=f"{_pytest.__name__}."
+        )
     )
 
 

@@ -57,7 +57,7 @@ def _truncate_explanation(
     truncated_explanation = _truncate_by_char_count(truncated_explanation, max_chars)
 
     # Add ellipsis to final line
-    truncated_explanation[-1] = truncated_explanation[-1] + "..."
+    truncated_explanation[-1] = f"{truncated_explanation[-1]}..."
 
     # Append useful message to explanation
     truncated_line_count = len(input_lines) - len(truncated_explanation)

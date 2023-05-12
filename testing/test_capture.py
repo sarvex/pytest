@@ -110,7 +110,7 @@ def test_capturing_unicode(pytester: Pytester, method: str) -> None:
         """
         % obj
     )
-    result = pytester.runpytest("--capture=%s" % method)
+    result = pytester.runpytest(f"--capture={method}")
     result.stdout.fnmatch_lines(["*1 passed*"])
 
 
@@ -122,7 +122,7 @@ def test_capturing_bytes_in_utf8_encoding(pytester: Pytester, method: str) -> No
             print('b\\u00f6y')
         """
     )
-    result = pytester.runpytest("--capture=%s" % method)
+    result = pytester.runpytest(f"--capture={method}")
     result.stdout.fnmatch_lines(["*1 passed*"])
 
 
@@ -969,7 +969,7 @@ class TestFDCapture:
         assert s == "hello"
 
     def test_simple_many(self, tmpfile: BinaryIO) -> None:
-        for i in range(10):
+        for _ in range(10):
             self.test_simple(tmpfile)
 
     def test_simple_many_check_open_files(self, pytester: Pytester) -> None:
@@ -1232,7 +1232,7 @@ class TestStdCaptureFD(TestStdCapture):
 
     def test_many(self, capfd):
         with lsof_check():
-            for i in range(10):
+            for _ in range(10):
                 cap = StdCaptureFD()
                 cap.start_capturing()
                 cap.stop_capturing()

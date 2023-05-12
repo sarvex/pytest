@@ -77,9 +77,10 @@ def _show_fixture_action(fixturedef: FixtureDef[object], msg: str) -> None:
     )
 
     if msg == "SETUP":
-        deps = sorted(arg for arg in fixturedef.argnames if arg != "request")
-        if deps:
-            tw.write(" (fixtures used: {})".format(", ".join(deps)))
+        if deps := sorted(
+            arg for arg in fixturedef.argnames if arg != "request"
+        ):
+            tw.write(f' (fixtures used: {", ".join(deps)})')
 
     if hasattr(fixturedef, "cached_param"):
         tw.write(f"[{saferepr(fixturedef.cached_param, maxsize=42)}]")  # type: ignore[attr-defined]

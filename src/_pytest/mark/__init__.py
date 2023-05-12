@@ -121,7 +121,7 @@ def pytest_cmdline_main(config: Config) -> Optional[Union[int, ExitCode]]:
             parts = line.split(":", 1)
             name = parts[0]
             rest = parts[1] if len(parts) == 2 else ""
-            tw.write("@pytest.mark.%s:" % name, bold=True)
+            tw.write(f"@pytest.mark.{name}:", bold=True)
             tw.line(rest)
             tw.line()
         config._ensure_unconfigure()
@@ -149,21 +149,18 @@ class KeywordMatcher:
 
     @classmethod
     def from_item(cls, item: "Item") -> "KeywordMatcher":
-        mapped_names = set()
-
         # Add the names of the current item and any parent items.
         import pytest
 
-        for node in item.listchain():
-            if not isinstance(node, pytest.Session):
-                mapped_names.add(node.name)
-
+        mapped_names = {
+            node.name
+            for node in item.listchain()
+            if not isinstance(node, pytest.Session)
+        }
         # Add the names added as extra keywords to current or parent items.
         mapped_names.update(item.listextrakeywords())
 
-        # Add the names attached to the current function through direct assignment.
-        function_obj = getattr(item, "function", None)
-        if function_obj:
+        if function_obj := getattr(item, "function", None):
             mapped_names.update(function_obj.__dict__)
 
         # Add the markers to the keywords as we no longer handle them correctly.
@@ -175,10 +172,7 @@ class KeywordMatcher:
         subname = subname.lower()
         names = (name.lower() for name in self._names)
 
-        for name in names:
-            if subname in name:
-                return True
-        return False
+        return any(subname in name for name in names)
 
 
 def deselect_by_keyword(items: "List[Item]", config: Config) -> None:

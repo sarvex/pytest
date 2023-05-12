@@ -139,8 +139,7 @@ def find_next_version(
     output = check_output(["git", "tag"], encoding="UTF-8")
     valid_versions = []
     for v in output.splitlines():
-        m = re.match(r"\d.\d.\d+$", v.strip())
-        if m:
+        if m := re.match(r"\d.\d.\d+$", v.strip()):
             valid_versions.append(tuple(int(x) for x in v.split(".")))
 
     valid_versions.sort()

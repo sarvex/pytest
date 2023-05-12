@@ -104,9 +104,7 @@ class pytestPDB:
 
     @classmethod
     def _is_capturing(cls, capman: Optional["CaptureManager"]) -> Union[str, bool]:
-        if capman:
-            return capman.is_capturing()
-        return False
+        return capman.is_capturing() if capman else False
 
     @classmethod
     def _import_pdb_cls(cls, capman: Optional["CaptureManager"]):
@@ -151,8 +149,8 @@ class pytestPDB:
     def _get_pdb_wrapper_class(cls, pdb_cls, capman: Optional["CaptureManager"]):
         import _pytest.config
 
-        # Type ignored because mypy doesn't support "dynamic"
-        # inheritance like this.
+
+
         class PytestPdbWrapper(pdb_cls):  # type: ignore[valid-type,misc]
             _pytest_capman = capman
             _continued = False
@@ -171,16 +169,11 @@ class pytestPDB:
                     tw.line()
 
                     capman = self._pytest_capman
-                    capturing = pytestPDB._is_capturing(capman)
-                    if capturing:
+                    if capturing := pytestPDB._is_capturing(capman):
                         if capturing == "global":
                             tw.sep(">", "PDB continue (IO-capturing resumed)")
                         else:
-                            tw.sep(
-                                ">",
-                                "PDB continue (IO-capturing resumed for %s)"
-                                % capturing,
-                            )
+                            tw.sep(">", f"PDB continue (IO-capturing resumed for {capturing})")
                         assert capman is not None
                         capman.resume()
                     else:
@@ -216,11 +209,8 @@ class pytestPDB:
                 breakpoint again.
                 """
                 ret = super().setup(f, tb)
-                if not ret and self._continued:
-                    # pdb.setup() returns True if the command wants to exit
-                    # from the interaction: do not suspend capturing then.
-                    if self._pytest_capman:
-                        self._pytest_capman.suspend_global_capture(in_=True)
+                if not ret and self._continued and self._pytest_capman:
+                    self._pytest_capman.suspend_global_capture(in_=True)
                 return ret
 
             def get_stack(self, f, t):
@@ -231,6 +221,7 @@ class pytestPDB:
                     while i and stack[i][0].f_locals.get("__tracebackhide__", False):
                         i -= 1
                 return stack, i
+
 
         return PytestPdbWrapper
 
@@ -260,11 +251,7 @@ class pytestPDB:
                     if capturing == "global":
                         tw.sep(">", f"PDB {method} (IO-capturing turned off)")
                     elif capturing:
-                        tw.sep(
-                            ">",
-                            "PDB %s (IO-capturing turned off for %s)"
-                            % (method, capturing),
-                        )
+                        tw.sep(">", f"PDB {method} (IO-capturing turned off for {capturing})")
                     else:
                         tw.sep(">", f"PDB {method}")
 
@@ -286,8 +273,7 @@ class PdbInvoke:
     def pytest_exception_interact(
         self, node: Node, call: "CallInfo[Any]", report: BaseReport
     ) -> None:
-        capman = node.config.pluginmanager.getplugin("capturemanager")
-        if capman:
+        if capman := node.config.pluginmanager.getplugin("capturemanager"):
             capman.suspend_global_capture(in_=True)
             out, err = capman.read_global_capture()
             sys.stdout.write(out)
@@ -350,7 +336,7 @@ def _enter_pdb(
         ("log", rep.caplog),
     ):
         if showcapture in (sectionname, "all") and content:
-            tw.sep(">", "captured " + sectionname)
+            tw.sep(">", f"captured {sectionname}")
             if content[-1:] == "\n":
                 content = content[:-1]
             tw.line(content)

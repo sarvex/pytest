@@ -46,10 +46,10 @@ def main(args):
 
 def _get_kind(issue):
     labels = [label["name"] for label in issue["labels"]]
-    for key in ("bug", "enhancement", "proposal"):
-        if key in labels:
-            return key
-    return "issue"
+    return next(
+        (key for key in ("bug", "enhancement", "proposal") if key in labels),
+        "issue",
+    )
 
 
 def report(issues):
@@ -59,15 +59,15 @@ def report(issues):
         kind = _get_kind(issue)
         status = issue["state"]
         number = issue["number"]
-        link = "https://github.com/pytest-dev/pytest/issues/%s/" % number
+        link = f"https://github.com/pytest-dev/pytest/issues/{number}/"
         print("----")
         print(status, kind, link)
         print(title)
-        # print()
-        # lines = body.split("\n")
-        # print("\n".join(lines[:3]))
-        # if len(lines) > 3 or len(body) > 240:
-        #    print("...")
+            # print()
+            # lines = body.split("\n")
+            # print("\n".join(lines[:3]))
+            # if len(lines) > 3 or len(body) > 240:
+            #    print("...")
     print("\n\nFound %s open issues" % len(issues))
 
 

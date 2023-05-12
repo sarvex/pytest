@@ -131,12 +131,9 @@ def pytest_cmdline_parse():
 def showversion(config: Config) -> None:
     if config.option.version > 1:
         sys.stdout.write(
-            "This is pytest version {}, imported from {}\n".format(
-                pytest.__version__, pytest.__file__
-            )
+            f"This is pytest version {pytest.__version__}, imported from {pytest.__file__}\n"
         )
-        plugininfo = getpluginversioninfo(config)
-        if plugininfo:
+        if plugininfo := getpluginversioninfo(config):
             for line in plugininfo:
                 sys.stdout.write(line + "\n")
     else:
@@ -177,7 +174,7 @@ def showhelp(config: Config) -> None:
         if help is None:
             raise TypeError(f"help argument cannot be None for {name}")
         spec = f"{name} ({type}):"
-        tw.write("  %s" % spec)
+        tw.write(f"  {spec}")
         spec_len = len(spec)
         if spec_len > (indent_len - 3):
             # Display help starting at a new line.
@@ -195,9 +192,9 @@ def showhelp(config: Config) -> None:
         else:
             # Display help starting after the spec, following lines indented.
             tw.write(" " * (indent_len - spec_len - 2))
-            wrapped = textwrap.wrap(help, columns - indent_len, break_on_hyphens=False)
-
-            if wrapped:
+            if wrapped := textwrap.wrap(
+                help, columns - indent_len, break_on_hyphens=False
+            ):
                 tw.line(wrapped[0])
                 for line in wrapped[1:]:
                     tw.line(indent + line)
@@ -224,7 +221,7 @@ def showhelp(config: Config) -> None:
     )
 
     for warningreport in reporter.stats.get("warnings", []):
-        tw.line("warning : " + warningreport.message, red=True)
+        tw.line(f"warning : {warningreport.message}", red=True)
     return
 
 
@@ -233,13 +230,12 @@ conftest_options = [("pytest_plugins", "list of plugin names to load")]
 
 def getpluginversioninfo(config: Config) -> List[str]:
     lines = []
-    plugininfo = config.pluginmanager.list_plugin_distinfo()
-    if plugininfo:
+    if plugininfo := config.pluginmanager.list_plugin_distinfo():
         lines.append("setuptools registered plugins:")
         for plugin, dist in plugininfo:
             loc = getattr(plugin, "__file__", repr(plugin))
             content = f"{dist.project_name}-{dist.version} at {loc}"
-            lines.append("  " + content)
+            lines.append(f"  {content}")
     return lines
 
 
@@ -248,17 +244,13 @@ def pytest_report_header(config: Config) -> List[str]:
     if config.option.debug or config.option.traceconfig:
         lines.append(f"using: pytest-{pytest.__version__}")
 
-        verinfo = getpluginversioninfo(config)
-        if verinfo:
+        if verinfo := getpluginversioninfo(config):
             lines.extend(verinfo)
 
     if config.option.traceconfig:
         lines.append("active plugins:")
         items = config.pluginmanager.list_name_plugin()
         for name, plugin in items:
-            if hasattr(plugin, "__file__"):
-                r = plugin.__file__
-            else:
-                r = repr(plugin)
+            r = plugin.__file__ if hasattr(plugin, "__file__") else repr(plugin)
             lines.append(f"    {name:<20}: {r}")
     return lines

@@ -514,7 +514,7 @@ class MarkGenerator:
                     )
 
                 # Raise a specific error for common misspellings of "parametrize".
-                if name in ["parameterize", "parametrise", "parameterise"]:
+                if name in {"parameterize", "parametrise", "parameterise"}:
                     __tracebackhide__ = True
                     fail(f"Unknown '{name}' mark, did you mean 'parametrize'?")
 
@@ -584,7 +584,7 @@ class NodeKeywords(MutableMapping[str, Any]):
 
     def __len__(self) -> int:
         # Doesn't need to be fast.
-        return sum(1 for keyword in self)
+        return sum(1 for _ in self)
 
     def __repr__(self) -> str:
         return f"<NodeKeywords for node {self.node}>"

@@ -131,10 +131,10 @@ class TempPathFactory:
             # just error out on this, at least for a while.
             if sys.platform != "win32":
                 uid = os.getuid()
-                rootdir_stat = rootdir.stat()
                 # getuid shouldn't fail, but cpython defines such a case.
                 # Let's hope for the best.
                 if uid != -1:
+                    rootdir_stat = rootdir.stat()
                     if rootdir_stat.st_uid != uid:
                         raise OSError(
                             f"The temporary directory {rootdir} is not owned by the current user. "

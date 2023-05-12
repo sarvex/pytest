@@ -660,7 +660,7 @@ class TestRequestBasic:
         assert req.cls is None
         assert req.function.__name__ == "test_func"
         assert req.config == item.config
-        assert repr(req).find(req.function.__name__) != -1
+        assert req.function.__name__ in repr(req)
 
     def test_request_attributes_method(self, pytester: Pytester) -> None:
         (item,) = pytester.getitems(
@@ -2903,7 +2903,7 @@ class TestFixtureMarker:
             )
         )
         reprec = pytester.runpytest("-s")
-        for test in ["test_browser"]:
+        for _ in ["test_browser"]:
             reprec.stdout.fnmatch_lines(["*Finalized*"])
 
     def test_class_scope_with_normal_tests(self, pytester: Pytester) -> None:

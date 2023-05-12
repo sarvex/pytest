@@ -52,7 +52,7 @@ def getmsg(
     code = compile(mod, "<test>", "exec")
     ns: Dict[str, object] = {}
     if extra_ns is not None:
-        ns.update(extra_ns)
+        ns |= extra_ns
     exec(code, ns)
     func = ns[f.__name__]
     try:
@@ -61,9 +61,7 @@ def getmsg(
         if must_pass:
             pytest.fail("shouldn't have raised")
         s = str(sys.exc_info()[1])
-        if not s.startswith("assert"):
-            return "AssertionError: " + s
-        return s
+        return f"AssertionError: {s}" if not s.startswith("assert") else s
     else:
         if not must_pass:
             pytest.fail("function didn't raise at all")
@@ -330,7 +328,7 @@ class TestAssertionRewrite:
         result = pytester.runpytest()
         assert result.ret == 1
         result.stdout.fnmatch_lines(
-            ["*AssertionError*%s*" % repr((1, 2)), "*assert 1 == 2*"]
+            [f"*AssertionError*{repr((1, 2))}*", "*assert 1 == 2*"]
         )
 
     def test_assertion_message_expr(self, pytester: Pytester) -> None:
@@ -450,7 +448,7 @@ class TestAssertionRewrite:
 
         def f2() -> None:
             x = 1
-            assert x == 1 or x == 2
+            assert x in {1, 2}
 
         getmsg(f2, must_pass=True)
 
@@ -899,9 +897,9 @@ def test_rewritten():
         result = pytester.runpytest_subprocess()
         assert result.ret == 0
         found_names = glob.glob(f"__pycache__/*-pytest-{pytest.__version__}.pyc")
-        assert found_names, "pyc with expected tag not found in names: {}".format(
-            glob.glob("__pycache__/*.pyc")
-        )
+        assert (
+            found_names
+        ), f'pyc with expected tag not found in names: {glob.glob("__pycache__/*.pyc")}'
 
     @pytest.mark.skipif('"__pypy__" in sys.modules')
     def test_pyc_vs_pyo(self, pytester: Pytester, monkeypatch) -> None:
@@ -913,18 +911,18 @@ def test_rewritten():
                 assert test_optimized.__doc__ is None"""
         )
         p = make_numbered_dir(root=Path(pytester.path), prefix="runpytest-")
-        tmp = "--basetemp=%s" % p
+        tmp = f"--basetemp={p}"
         monkeypatch.setenv("PYTHONOPTIMIZE", "2")
         monkeypatch.delenv("PYTHONDONTWRITEBYTECODE", raising=False)
         monkeypatch.delenv("PYTHONPYCACHEPREFIX", raising=False)
         assert pytester.runpytest_subprocess(tmp).ret == 0
-        tagged = "test_pyc_vs_pyo." + PYTEST_TAG
-        assert tagged + ".pyo" in os.listdir("__pycache__")
+        tagged = f"test_pyc_vs_pyo.{PYTEST_TAG}"
+        assert f"{tagged}.pyo" in os.listdir("__pycache__")
         monkeypatch.undo()
         monkeypatch.delenv("PYTHONDONTWRITEBYTECODE", raising=False)
         monkeypatch.delenv("PYTHONPYCACHEPREFIX", raising=False)
         assert pytester.runpytest_subprocess(tmp).ret == 1
-        assert tagged + ".pyc" in os.listdir("__pycache__")
+        assert f"{tagged}.pyc" in os.listdir("__pycache__")
 
     def test_package(self, pytester: Pytester) -> None:
         pkg = pytester.path.joinpath("pkg")
@@ -992,7 +990,7 @@ def test_rewritten():
         hook.exec_module(module)
         hook.mark_rewrite("test_remember_rewritten_modules")
         hook.mark_rewrite("test_remember_rewritten_modules")
-        assert warnings == []
+        assert not warnings
 
     def test_rewrite_warning_using_pytest_plugins(self, pytester: Pytester) -> None:
         pytester.makepyfile(
@@ -1059,7 +1057,6 @@ class TestAssertionRewriteHookDetails:
                 e = OSError()
                 e.errno = 10
                 raise e
-                yield
 
             monkeypatch.setattr(
                 _pytest.assertion.rewrite, "atomic_write", atomic_write_failed
@@ -1113,7 +1110,7 @@ class TestAssertionRewriteHookDetails:
         from _pytest.assertion.rewrite import _read_pyc
 
         source = tmp_path / "source.py"
-        pyc = Path(str(source) + "c")
+        pyc = Path(f"{str(source)}c")
 
         source.write_text("def test(): pass")
         py_compile.compile(str(source), str(pyc))
@@ -1139,7 +1136,7 @@ class TestAssertionRewriteHookDetails:
         state = AssertionState(config, "rewrite")
 
         fn = tmp_path / "source.py"
-        pyc = Path(str(fn) + "c")
+        pyc = Path(f"{str(fn)}c")
 
         fn.write_text("def test(): assert True")
 
@@ -1781,7 +1778,7 @@ class TestPyCacheDir:
         assert bar_init.is_file()
 
         # test file: rewritten, custom pytest cache tag
-        test_foo_pyc = get_cache_dir(test_foo) / ("test_foo" + PYC_TAIL)
+        test_foo_pyc = get_cache_dir(test_foo) / f"test_foo{PYC_TAIL}"
         assert test_foo_pyc.is_file()
 
         # normal file: not touched by pytest, normal cache tag

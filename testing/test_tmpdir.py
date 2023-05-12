@@ -76,11 +76,11 @@ class TestConfigTmpPath:
                 pass
         """
         )
-        pytester.runpytest(p, "--basetemp=%s" % mytemp)
+        pytester.runpytest(p, f"--basetemp={mytemp}")
         assert mytemp.exists()
         mytemp.joinpath("hello").touch()
 
-        pytester.runpytest(p, "--basetemp=%s" % mytemp)
+        pytester.runpytest(p, f"--basetemp={mytemp}")
         assert mytemp.exists()
         assert not mytemp.joinpath("hello").exists()
 
@@ -109,7 +109,7 @@ def test_mktemp(pytester: Pytester, basename: str, is_ok: bool) -> None:
         )
     )
 
-    result = pytester.runpytest(p, "--basetemp=%s" % mytemp)
+    result = pytester.runpytest(p, f"--basetemp={mytemp}")
     if is_ok:
         assert result.ret == 0
         assert mytemp.joinpath(basename).exists()
@@ -238,7 +238,7 @@ class TestNumberedDir:
             assert d.name.startswith(self.PREFIX)
             assert d.name.endswith(str(i))
 
-        symlink = tmp_path.joinpath(self.PREFIX + "current")
+        symlink = tmp_path.joinpath(f"{self.PREFIX}current")
         if symlink.exists():
             # unix
             assert symlink.is_symlink()
@@ -302,8 +302,8 @@ class TestNumberedDir:
         )
 
     def test_cleanup_ignores_symlink(self, tmp_path):
-        the_symlink = tmp_path / (self.PREFIX + "current")
-        attempt_symlink_to(the_symlink, tmp_path / (self.PREFIX + "5"))
+        the_symlink = tmp_path / f"{self.PREFIX}current"
+        attempt_symlink_to(the_symlink, tmp_path / f"{self.PREFIX}5")
         self._do_cleanup(tmp_path)
 
     def test_removal_accepts_lock(self, tmp_path):

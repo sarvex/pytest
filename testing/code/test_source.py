@@ -63,7 +63,7 @@ def test_source_from_inner_function() -> None:
 def test_source_strips() -> None:
     source = Source("")
     assert source == Source()
-    assert str(source) == ""
+    assert not str(source)
     assert source.strip() == source
 
 
@@ -86,7 +86,7 @@ class TestAccesses:
         )
 
     def test_getrange(self) -> None:
-        x = self.source[0:2]
+        x = self.source[:2]
         assert len(x.lines) == 2
         assert str(x) == "def f(x):\n    pass"
 
@@ -102,7 +102,7 @@ class TestAccesses:
         assert len(self.source) == 4
 
     def test_iter(self) -> None:
-        values = [x for x in self.source]
+        values = list(self.source)
         assert len(values) == 4
 
 

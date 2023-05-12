@@ -55,7 +55,7 @@ def _compare_approx(
         max_sizes[0] = max(max_sizes[0], len(index))
         max_sizes[1] = max(max_sizes[1], len(obtained))
         max_sizes[2] = max(max_sizes[2], len(expected))
-    explanation = [
+    return [
         f"comparison failed. Mismatched elements: {len(different_ids)} / {number_of_elements}:",
         f"Max absolute difference: {max_abs_diff}",
         f"Max relative difference: {max_rel_diff}",
@@ -63,7 +63,6 @@ def _compare_approx(
         f"{indexes:<{max_sizes[0]}} | {obtained:<{max_sizes[1]}} | {expected:<{max_sizes[2]}}"
         for indexes, obtained, expected in message_list
     ]
-    return explanation
 
 
 # builtin pytest.approx helper
@@ -483,9 +482,8 @@ class ApproxScalar(ApproxBase):
 
         # If the user specified an absolute tolerance but not a relative one,
         # just return the absolute tolerance.
-        if self.rel is None:
-            if self.abs is not None:
-                return absolute_tolerance
+        if self.rel is None and self.abs is not None:
+            return absolute_tolerance
 
         # Figure out what the relative tolerance should be.  ``self.rel`` is
         # either None or a value specified by the user.  This is done after
@@ -899,8 +897,10 @@ def raises(
     if not args:
         match: Optional[Union[str, Pattern[str]]] = kwargs.pop("match", None)
         if kwargs:
-            msg = "Unexpected keyword arguments passed to pytest.raises: "
-            msg += ", ".join(sorted(kwargs))
+            msg = (
+                "Unexpected keyword arguments passed to pytest.raises: "
+                + ", ".join(sorted(kwargs))
+            )
             msg += "\nUse context-manager form instead?"
             raise TypeError(msg)
         return RaisesContext(expected_exception, message, match)

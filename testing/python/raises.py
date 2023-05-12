@@ -44,7 +44,7 @@ class TestRaises:
             # this test prints the inflight uninitialized object
             # using repr and str as well as pprint to demonstrate
             # it works
-            print(str(excinfo))
+            print(excinfo)
             print(repr(excinfo))
             import pprint
 

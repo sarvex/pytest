@@ -205,7 +205,7 @@ class TestPDB:
                 pass
         """
         )
-        child = pytester.spawn_pytest("--pdb %s" % p1)
+        child = pytester.spawn_pytest(f"--pdb {p1}")
         child.expect("captured stdout")
         child.expect("get rekt")
         child.expect("captured stderr")
@@ -230,7 +230,7 @@ class TestPDB:
                 assert False
         """
         )
-        child = pytester.spawn_pytest("--pdb %s" % p1)
+        child = pytester.spawn_pytest(f"--pdb {p1}")
         child.expect("Pdb")
         output = child.before.decode("utf8")
         child.sendeof()
@@ -249,7 +249,7 @@ class TestPDB:
         """
         )
         child = pytester.spawn_pytest(f"--show-capture={showcapture} --pdb {p1}")
-        if showcapture in ("all", "log"):
+        if showcapture in {"all", "log"}:
             child.expect("captured log")
             child.expect("get rekt")
         child.expect("Pdb")
@@ -267,7 +267,7 @@ class TestPDB:
                 assert False
         """
         )
-        child = pytester.spawn_pytest("--show-capture=all --pdb -p no:logging %s" % p1)
+        child = pytester.spawn_pytest(f"--show-capture=all --pdb -p no:logging {p1}")
         child.expect("get rekt")
         output = child.before.decode("utf8")
         assert "captured log" not in output
@@ -287,7 +287,7 @@ class TestPDB:
                 pytest.raises(ValueError, globalfunc)
         """
         )
-        child = pytester.spawn_pytest("--pdb %s" % p1)
+        child = pytester.spawn_pytest(f"--pdb {p1}")
         child.expect(".*def test_1")
         child.expect(".*pytest.raises.*globalfunc")
         child.expect("Pdb")
@@ -304,7 +304,7 @@ class TestPDB:
             xxx
         """
         )
-        child = pytester.spawn_pytest("--pdb %s" % p1)
+        child = pytester.spawn_pytest(f"--pdb {p1}")
         # child.expect(".*import pytest.*")
         child.expect("Pdb")
         child.sendline("c")
@@ -319,7 +319,7 @@ class TestPDB:
         """
         )
         p1 = pytester.makepyfile("def test_func(): pass")
-        child = pytester.spawn_pytest("--pdb %s" % p1)
+        child = pytester.spawn_pytest(f"--pdb {p1}")
         child.expect("Pdb")
 
         # INTERNALERROR is only displayed once via terminal reporter.
@@ -444,7 +444,7 @@ class TestPDB:
                 assert 0
         """
         )
-        child = pytester.spawn_pytest("--pdb %s" % str(p1))
+        child = pytester.spawn_pytest(f"--pdb {str(p1)}")
         child.send("caplog.record_tuples\n")
         child.expect_exact(
             "[('test_pdb_with_caplog_on_pdb_invocation', 30, 'some_warning')]"
@@ -484,7 +484,7 @@ class TestPDB:
                 '''
         """
         )
-        child = pytester.spawn_pytest("--doctest-modules --pdb %s" % p1)
+        child = pytester.spawn_pytest(f"--doctest-modules --pdb {p1}")
         child.expect("Pdb")
 
         assert "UNEXPECTED EXCEPTION: AssertionError()" in child.before.decode("utf8")
@@ -511,7 +511,7 @@ class TestPDB:
         )
         # NOTE: does not use pytest.set_trace, but Python's patched pdb,
         #       therefore "-s" is required.
-        child = pytester.spawn_pytest("--doctest-modules --pdb -s %s" % p1)
+        child = pytester.spawn_pytest(f"--doctest-modules --pdb -s {p1}")
         child.expect("Pdb")
         child.sendline("q")
         rest = child.read().decode("utf8")
@@ -602,7 +602,7 @@ class TestPDB:
                 pytest.fail("expected_failure")
         """
         )
-        child = pytester.spawn_pytest("--pdbcls=mytest:CustomPdb %s" % str(p1))
+        child = pytester.spawn_pytest(f"--pdbcls=mytest:CustomPdb {str(p1)}")
         child.expect(r"PDB set_trace \(IO-capturing turned off\)")
         child.expect(r"\n\(Pdb")
         child.sendline("debug foo()")
@@ -639,7 +639,7 @@ class TestPDB:
                 pytest.set_trace()
         """
         )
-        child = pytester.spawn_pytest("-s %s" % p1)
+        child = pytester.spawn_pytest(f"-s {p1}")
         child.expect(r">>> PDB set_trace >>>")
         child.expect("Pdb")
         child.sendline("c")
@@ -819,9 +819,9 @@ class TestPDB:
         """
         )
         if post_mortem:
-            child = pytester.spawn_pytest(str(p1) + " --pdb -s -k test_post_mortem")
+            child = pytester.spawn_pytest(f"{str(p1)} --pdb -s -k test_post_mortem")
         else:
-            child = pytester.spawn_pytest(str(p1) + " -k test_set_trace")
+            child = pytester.spawn_pytest(f"{str(p1)} -k test_set_trace")
         child.expect("enter_pdb_hook")
         child.sendline("c")
         if post_mortem:
@@ -866,7 +866,7 @@ class TestPDB:
         p1 = pytester.makepyfile("""xxx """)
         result = pytester.runpytest_inprocess("--pdbcls=_pytest:_CustomPdb", p1)
         result.stdout.fnmatch_lines(["*NameError*xxx*", "*1 error*"])
-        assert custom_pdb_calls == []
+        assert not custom_pdb_calls
 
     def test_pdb_custom_cls_with_set_trace(
         self,
@@ -895,7 +895,7 @@ class TestPDB:
         """
         )
         monkeypatch.setenv("PYTHONPATH", str(pytester.path))
-        child = pytester.spawn_pytest("--pdbcls=custom_pdb:CustomPdb %s" % str(p1))
+        child = pytester.spawn_pytest(f"--pdbcls=custom_pdb:CustomPdb {str(p1)}")
 
         child.expect("__init__")
         child.expect("custom set_trace>")
@@ -980,10 +980,7 @@ class TestDebuggingBreakpoints:
         result = pytester.runpytest_subprocess(*args)
         result.stdout.fnmatch_lines(["*1 passed in *"])
 
-    @pytest.mark.skipif(
-        not _ENVIRON_PYTHONBREAKPOINT == "",
-        reason="Requires breakpoint() default value",
-    )
+    @pytest.mark.skipif(_ENVIRON_PYTHONBREAKPOINT != "", reason="Requires breakpoint() default value")
     def test_sys_breakpoint_interception(self, pytester: Pytester) -> None:
         p1 = pytester.makepyfile(
             """
@@ -1033,7 +1030,7 @@ class TestTraceOption:
                 pass
             """
         )
-        child = pytester.spawn_pytest("--trace " + str(p1))
+        child = pytester.spawn_pytest(f"--trace {str(p1)}")
         child.expect("test_1")
         child.expect("Pdb")
         child.sendline("c")
@@ -1072,7 +1069,7 @@ class TestTraceOption:
                 assert request.function.__name__ == "test_func_kw"
             """
         )
-        child = pytester.spawn_pytest("--trace " + str(p1))
+        child = pytester.spawn_pytest(f"--trace {str(p1)}")
         for func, argname in [
             ("test_1", "myparam"),
             ("test_func", "func"),
@@ -1182,12 +1179,12 @@ def test_pdb_suspends_fixture_capturing(pytester: Pytester, fixture: str) -> Non
         )
     )
 
-    child = pytester.spawn_pytest(str(p1) + " -s")
+    child = pytester.spawn_pytest(f"{str(p1)} -s")
 
     child.expect("Pdb")
     before = child.before.decode("utf8")
     assert (
-        "> PDB set_trace (IO-capturing turned off for fixture %s) >" % (fixture)
+        f"> PDB set_trace (IO-capturing turned off for fixture {fixture}) >"
         in before
     )
 
@@ -1204,7 +1201,7 @@ def test_pdb_suspends_fixture_capturing(pytester: Pytester, fixture: str) -> Non
     TestPDB.flush(child)
     assert child.exitstatus == 0
     assert "= 1 passed in" in rest
-    assert "> PDB continue (IO-capturing resumed for fixture %s) >" % (fixture) in rest
+    assert f"> PDB continue (IO-capturing resumed for fixture {fixture}) >" in rest
 
 
 def test_pdbcls_via_local_module(pytester: Pytester) -> None:

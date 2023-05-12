@@ -504,9 +504,7 @@ class TestMetafunc:
         """#351"""
 
         def ids(val: object) -> Optional[str]:
-            if isinstance(val, Exception):
-                return repr(val)
-            return None
+            return repr(val) if isinstance(val, Exception) else None
 
         result = IdMaker(
             ("a", "b"),

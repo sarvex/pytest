@@ -56,12 +56,11 @@ class Source:
     def __getitem__(self, key: Union[int, slice]) -> Union[str, "Source"]:
         if isinstance(key, int):
             return self.lines[key]
-        else:
-            if key.step not in (None, 1):
-                raise IndexError("cannot slice a Source with a step")
-            newsource = Source()
-            newsource.lines = self.lines[key.start : key.stop]
-            return newsource
+        if key.step not in (None, 1):
+            raise IndexError("cannot slice a Source with a step")
+        newsource = Source()
+        newsource.lines = self.lines[key.start : key.stop]
+        return newsource
 
     def __iter__(self) -> Iterator[str]:
         return iter(self.lines)
@@ -152,21 +151,16 @@ def get_statement_startend2(lineno: int, node: ast.AST) -> Tuple[int, Optional[i
             # Before Python 3.8, the lineno of a decorated class or function pointed at the decorator.
             # Since Python 3.8, the lineno points to the class/def, so need to include the decorators.
             if isinstance(x, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
-                for d in x.decorator_list:
-                    values.append(d.lineno - 1)
+                values.extend(d.lineno - 1 for d in x.decorator_list)
             values.append(x.lineno - 1)
             for name in ("finalbody", "orelse"):
-                val: Optional[List[ast.stmt]] = getattr(x, name, None)
-                if val:
+                if val := getattr(x, name, None):
                     # Treat the finally/orelse part as its own statement.
                     values.append(val[0].lineno - 1 - 1)
     values.sort()
     insert_index = bisect_right(values, lineno)
     start = values[insert_index - 1]
-    if insert_index >= len(values):
-        end = None
-    else:
-        end = values[insert_index]
+    end = None if insert_index >= len(values) else values[insert_index]
     return start, end
 
 

@@ -237,7 +237,7 @@ class LFPluginCollWrapper:
 
                 # Only filter with known failures.
                 if not self._collected_at_least_one_failure:
-                    if not any(x.nodeid in lastfailed for x in result):
+                    if all(x.nodeid not in lastfailed for x in result):
                         return
                     self.lfplugin.config.pluginmanager.register(
                         LFPluginCollSkipfiles(self.lfplugin), "lfplugin-collskip"
@@ -269,13 +269,16 @@ class LFPluginCollSkipfiles:
         # Packages are Modules, but _last_failed_paths only contains
         # test-bearing paths and doesn't try to include the paths of their
         # packages, so don't filter them.
-        if isinstance(collector, Module) and not isinstance(collector, Package):
-            if collector.path not in self.lfplugin._last_failed_paths:
-                self.lfplugin._skipped_files += 1
+        if (
+            isinstance(collector, Module)
+            and not isinstance(collector, Package)
+            and collector.path not in self.lfplugin._last_failed_paths
+        ):
+            self.lfplugin._skipped_files += 1
 
-                return CollectReport(
-                    collector.nodeid, "passed", longrepr=None, result=[]
-                )
+            return CollectReport(
+                collector.nodeid, "passed", longrepr=None, result=[]
+            )
         return None
 
 
@@ -306,7 +309,7 @@ class LFPlugin:
 
     def pytest_report_collectionfinish(self) -> Optional[str]:
         if self.active and self.config.getoption("verbose") >= 0:
-            return "run-last-failure: %s" % self._report_status
+            return f"run-last-failure: {self._report_status}"
         return None
 
     def pytest_runtest_logreport(self, report: TestReport) -> None:
@@ -544,7 +547,7 @@ def cacheshow(config: Config, session: Session) -> int:
     assert config.cache is not None
 
     tw = TerminalWriter()
-    tw.line("cachedir: " + str(config.cache._cachedir))
+    tw.line(f"cachedir: {str(config.cache._cachedir)}")
     if not config.cache._cachedir.is_dir():
         tw.line("cache is empty")
         return 0
@@ -561,11 +564,11 @@ def cacheshow(config: Config, session: Session) -> int:
         key = str(valpath.relative_to(vdir))
         val = config.cache.get(key, dummy)
         if val is dummy:
-            tw.line("%s contains unreadable content, will be ignored" % key)
+            tw.line(f"{key} contains unreadable content, will be ignored")
         else:
-            tw.line("%s contains:" % key)
+            tw.line(f"{key} contains:")
             for line in pformat(val).splitlines():
-                tw.line("  " + line)
+                tw.line(f"  {line}")
 
     ddir = basedir / Cache._CACHE_PREFIX_DIRS
     if ddir.is_dir():

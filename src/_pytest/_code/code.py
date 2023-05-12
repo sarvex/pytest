@@ -570,9 +570,7 @@ class ExceptionInfo(Generic[E]):
     def __repr__(self) -> str:
         if self._excinfo is None:
             return "<ExceptionInfo for raises contextmanager>"
-        return "<{} {} tblen={}>".format(
-            self.__class__.__name__, saferepr(self._excinfo[1]), len(self.traceback)
-        )
+        return f"<{self.__class__.__name__} {saferepr(self._excinfo[1])} tblen={len(self.traceback)}>"
 
     def exconly(self, tryshort: bool = False) -> str:
         """Return the exception as a string.
@@ -585,9 +583,8 @@ class ExceptionInfo(Generic[E]):
         lines = format_exception_only(self.type, self.value)
         text = "".join(lines)
         text = text.rstrip()
-        if tryshort:
-            if text.startswith(self._striptext):
-                text = text[len(self._striptext) :]
+        if tryshort and text.startswith(self._striptext):
+            text = text[len(self._striptext) :]
         return text
 
     def errisinstance(
@@ -722,9 +719,10 @@ class FormattedExcinfo:
 
     def repr_args(self, entry: TracebackEntry) -> Optional["ReprFuncArgs"]:
         if self.funcargs:
-            args = []
-            for argname, argvalue in entry.frame.getargs(var=True):
-                args.append((argname, saferepr(argvalue)))
+            args = [
+                (argname, saferepr(argvalue))
+                for argname, argvalue in entry.frame.getargs(var=True)
+            ]
             return ReprFuncArgs(args)
         return None
 
@@ -746,11 +744,9 @@ class FormattedExcinfo:
         if short:
             lines.append(space_prefix + source.lines[line_index].strip())
         else:
-            for line in source.lines[:line_index]:
-                lines.append(space_prefix + line)
-            lines.append(self.flow_marker + "   " + source.lines[line_index])
-            for line in source.lines[line_index + 1 :]:
-                lines.append(space_prefix + line)
+            lines.extend(space_prefix + line for line in source.lines[:line_index])
+            lines.append(f"{self.flow_marker}   {source.lines[line_index]}")
+            lines.extend(space_prefix + line for line in source.lines[line_index + 1 :])
         if excinfo is not None:
             indent = 4 if short else self._getindent(source)
             lines.extend(self.get_exconly(excinfo, indent=indent, markall=True))
@@ -774,30 +770,27 @@ class FormattedExcinfo:
         return lines
 
     def repr_locals(self, locals: Mapping[str, object]) -> Optional["ReprLocals"]:
-        if self.showlocals:
-            lines = []
-            keys = [loc for loc in locals if loc[0] != "@"]
-            keys.sort()
-            for name in keys:
-                value = locals[name]
-                if name == "__builtins__":
-                    lines.append("__builtins__ = <builtins>")
-                else:
+        if not self.showlocals:
+            return None
+        lines = []
+        keys = [loc for loc in locals if loc[0] != "@"]
+        keys.sort()
+        for name in keys:
+            value = locals[name]
+            if name == "__builtins__":
+                lines.append("__builtins__ = <builtins>")
+            else:
                     # This formatting could all be handled by the
                     # _repr() function, which is only reprlib.Repr in
                     # disguise, so is very configurable.
-                    if self.truncate_locals:
-                        str_repr = saferepr(value)
-                    else:
-                        str_repr = safeformat(value)
-                    # if len(str_repr) < 70 or not isinstance(value, (list, tuple, dict)):
-                    lines.append(f"{name:<10} = {str_repr}")
-                    # else:
-                    #    self._line("%-10s =\\" % (name,))
-                    #    # XXX
-                    #    pprint.pprint(value, stream=self.excinfowriter)
-            return ReprLocals(lines)
-        return None
+                str_repr = saferepr(value) if self.truncate_locals else safeformat(value)
+                # if len(str_repr) < 70 or not isinstance(value, (list, tuple, dict)):
+                lines.append(f"{name:<10} = {str_repr}")
+                            # else:
+                            #    self._line("%-10s =\\" % (name,))
+                            #    # XXX
+                            #    pprint.pprint(value, stream=self.excinfowriter)
+        return ReprLocals(lines)
 
     def repr_traceback_entry(
         self,
@@ -817,10 +810,7 @@ class FormattedExcinfo:
             reprargs = self.repr_args(entry) if not short else None
             s = self.get_source(source, line_index, excinfo, short=short)
             lines.extend(s)
-            if short:
-                message = "in %s" % (entry.name)
-            else:
-                message = excinfo and excinfo.typename or ""
+            message = f"in {entry.name}" if short else excinfo and excinfo.typename or ""
             entry_path = entry.path
             path = self._makepath(entry_path)
             reprfileloc = ReprFileLocation(path, entry.lineno + 1, message)
@@ -862,7 +852,7 @@ class FormattedExcinfo:
             entries.append(reprentry)
             return ReprTraceback(entries, None, style=self.style)
 
-        for index, entry in enumerate(traceback):
+        for entry in traceback:
             einfo = (last == entry) and excinfo or None
             reprentry = self.repr_traceback_entry(entry, einfo)
             entries.append(reprentry)
@@ -1181,22 +1171,22 @@ class ReprFuncArgs(TerminalRepr):
     args: Sequence[Tuple[str, object]]
 
     def toterminal(self, tw: TerminalWriter) -> None:
-        if self.args:
-            linesofar = ""
-            for name, value in self.args:
-                ns = f"{name} = {value}"
-                if len(ns) + len(linesofar) + 2 > tw.fullwidth:
-                    if linesofar:
-                        tw.line(linesofar)
-                    linesofar = ns
-                else:
-                    if linesofar:
-                        linesofar += ", " + ns
-                    else:
-                        linesofar = ns
-            if linesofar:
-                tw.line(linesofar)
-            tw.line("")
+        if not self.args:
+            return
+        linesofar = ""
+        for name, value in self.args:
+            ns = f"{name} = {value}"
+            if len(ns) + len(linesofar) + 2 > tw.fullwidth:
+                if linesofar:
+                    tw.line(linesofar)
+                linesofar = ns
+            elif linesofar:
+                linesofar += f", {ns}"
+            else:
+                linesofar = ns
+        if linesofar:
+            tw.line(linesofar)
+        tw.line("")
 
 
 def getfslineno(obj: object) -> Tuple[Union[str, Path], int]:
@@ -1266,9 +1256,4 @@ def filter_traceback(entry: TracebackEntry) -> bool:
     p = Path(entry.path)
 
     parents = p.parents
-    if _PLUGGY_DIR in parents:
-        return False
-    if _PYTEST_DIR in parents:
-        return False
-
-    return True
+    return False if _PLUGGY_DIR in parents else _PYTEST_DIR not in parents

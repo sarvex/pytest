@@ -142,8 +142,10 @@ def warns(
     __tracebackhide__ = True
     if not args:
         if kwargs:
-            msg = "Unexpected keyword arguments passed to pytest.warns: "
-            msg += ", ".join(sorted(kwargs))
+            msg = (
+                "Unexpected keyword arguments passed to pytest.warns: "
+                + ", ".join(sorted(kwargs))
+            )
             msg += "\nUse context-manager form instead?"
             raise TypeError(msg)
         return WarningsChecker(expected_warning, match_expr=match, _ispytest=True)
@@ -269,28 +271,24 @@ class WarningsChecker(WarningsRecorder):
         __tracebackhide__ = True
 
         # only check if we're not currently handling an exception
-        if exc_type is None and exc_val is None and exc_tb is None:
-            if self.expected_warning is not None:
-                if not any(issubclass(r.category, self.expected_warning) for r in self):
-                    __tracebackhide__ = True
+        if (
+            exc_type is None
+            and exc_val is None
+            and exc_tb is None
+            and self.expected_warning is not None
+        ):
+            if not any(issubclass(r.category, self.expected_warning) for r in self):
+                __tracebackhide__ = True
+                fail(
+                    f"DID NOT WARN. No warnings of type {self.expected_warning} were emitted. The list of emitted warnings is: {[each.message for each in self]}."
+                )
+            elif self.match_expr is not None:
+                for r in self:
+                    if issubclass(
+                        r.category, self.expected_warning
+                    ) and re.compile(self.match_expr).search(str(r.message)):
+                        break
+                else:
                     fail(
-                        "DID NOT WARN. No warnings of type {} were emitted. "
-                        "The list of emitted warnings is: {}.".format(
-                            self.expected_warning, [each.message for each in self]
-                        )
+                        f"DID NOT WARN. No warnings of type {self.expected_warning} matching ('{self.match_expr}') were emitted. The list of emitted warnings is: {[each.message for each in self]}."
                     )
-                elif self.match_expr is not None:
-                    for r in self:
-                        if issubclass(r.category, self.expected_warning):
-                            if re.compile(self.match_expr).search(str(r.message)):
-                                break
-                    else:
-                        fail(
-                            "DID NOT WARN. No warnings of type {} matching"
-                            " ('{}') were emitted. The list of emitted warnings"
-                            " is: {}.".format(
-                                self.expected_warning,
-                                self.match_expr,
-                                [each.message for each in self],
-                            )
-                        )

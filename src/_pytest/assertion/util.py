@@ -78,10 +78,7 @@ def _format_lines(lines: Sequence[str]) -> List[str]:
     stackcnt = [0]
     for line in lines[1:]:
         if line.startswith("{"):
-            if stackcnt[-1]:
-                s = "and   "
-            else:
-                s = "where "
+            s = "and   " if stackcnt[-1] else "where "
             stack.append(len(result))
             stackcnt[-1] += 1
             stackcnt.append(0)
@@ -184,16 +181,11 @@ def assertrepr_compare(config, op: str, left: Any, right: Any) -> Optional[List[
         raise
     except Exception:
         explanation = [
-            "(pytest_assertion plugin: representation of details failed: {}.".format(
-                _pytest._code.ExceptionInfo.from_current()._getreprcrash()
-            ),
+            f"(pytest_assertion plugin: representation of details failed: {_pytest._code.ExceptionInfo.from_current()._getreprcrash()}.",
             " Probably an object has a faulty __repr__.)",
         ]
 
-    if not explanation:
-        return None
-
-    return [summary] + explanation
+    return None if not explanation else [summary] + explanation
 
 
 def _compare_eq_any(left: Any, right: Any, verbose: int = 0) -> List[str]:
@@ -249,7 +241,7 @@ def _diff_text(left: str, right: str, verbose: int = 0) -> List[str]:
         if i > 42:
             i -= 10  # Provide some context
             explanation = [
-                "Skipping %s identical leading characters in diff, use -v to show" % i
+                f"Skipping {i} identical leading characters in diff, use -v to show"
             ]
             left = left[i:]
             right = right[i:]
@@ -260,8 +252,7 @@ def _diff_text(left: str, right: str, verbose: int = 0) -> List[str]:
             if i > 42:
                 i -= 10  # Provide some context
                 explanation += [
-                    "Skipping {} identical trailing "
-                    "characters in diff, use -v to show".format(i)
+                    f"Skipping {i} identical trailing characters in diff, use -v to show"
                 ]
                 left = left[:-i]
                 right = right[:-i]
@@ -283,11 +274,11 @@ def _surrounding_parens_on_own_lines(lines: List[str]) -> None:
     """Move opening/closing parenthesis/bracket to own lines."""
     opening = lines[0][:1]
     if opening in ["(", "[", "{"]:
-        lines[0] = " " + lines[0][1:]
+        lines[0] = f" {lines[0][1:]}"
         lines[:] = [opening] + lines
     closing = lines[-1][-1:]
     if closing in [")", "]", "}"]:
-        lines[-1] = lines[-1][:-1] + ","
+        lines[-1] = f"{lines[-1][:-1]},"
         lines[:] = lines + [closing]
 
 
@@ -355,8 +346,7 @@ def _compare_eq_sequence(
 
         return explanation
 
-    len_diff = len_left - len_right
-    if len_diff:
+    if len_diff := len_left - len_right:
         if len_diff > 0:
             dir_with_more = "Left"
             extra = saferepr(left[len_right])
@@ -383,12 +373,10 @@ def _compare_eq_set(
     diff_right = right - left
     if diff_left:
         explanation.append("Extra items in the left set:")
-        for item in diff_left:
-            explanation.append(saferepr(item))
+        explanation.extend(saferepr(item) for item in diff_left)
     if diff_right:
         explanation.append("Extra items in the right set:")
-        for item in diff_right:
-            explanation.append(saferepr(item))
+        explanation.extend(saferepr(item) for item in diff_right)
     return explanation
 
 
@@ -399,20 +387,18 @@ def _compare_eq_dict(
     set_left = set(left)
     set_right = set(right)
     common = set_left.intersection(set_right)
-    same = {k: left[k] for k in common if left[k] == right[k]}
-    if same and verbose < 2:
-        explanation += ["Omitting %s identical items, use -vv to show" % len(same)]
-    elif same:
-        explanation += ["Common items:"]
-        explanation += pprint.pformat(same).splitlines()
-    diff = {k for k in common if left[k] != right[k]}
-    if diff:
+    if same := {k: left[k] for k in common if left[k] == right[k]}:
+        if verbose < 2:
+            explanation += [f"Omitting {len(same)} identical items, use -vv to show"]
+        else:
+            explanation += ["Common items:"]
+            explanation += pprint.pformat(same).splitlines()
+    if diff := {k for k in common if left[k] != right[k]}:
         explanation += ["Differing items:"]
         for k in diff:
-            explanation += [saferepr({k: left[k]}) + " != " + saferepr({k: right[k]})]
+            explanation += [f"{saferepr({k: left[k]})} != {saferepr({k: right[k]})}"]
     extra_left = set_left - set_right
-    len_extra_left = len(extra_left)
-    if len_extra_left:
+    if len_extra_left := len(extra_left):
         explanation.append(
             "Left contains %d more item%s:"
             % (len_extra_left, "" if len_extra_left == 1 else "s")
@@ -421,8 +407,7 @@ def _compare_eq_dict(
             pprint.pformat({k: left[k] for k in extra_left}).splitlines()
         )
     extra_right = set_right - set_left
-    len_extra_right = len(extra_right)
-    if len_extra_right:
+    if len_extra_right := len(extra_right):
         explanation.append(
             "Right contains %d more item%s:"
             % (len_extra_right, "" if len_extra_right == 1 else "s")
@@ -447,7 +432,6 @@ def _compare_eq_cls(left: Any, right: Any, verbose: int) -> List[str]:
     else:
         assert False
 
-    indent = "  "
     same = []
     diff = []
     for field in fields_to_check:
@@ -459,20 +443,22 @@ def _compare_eq_cls(left: Any, right: Any, verbose: int) -> List[str]:
     explanation = []
     if same or diff:
         explanation += [""]
-    if same and verbose < 2:
-        explanation.append("Omitting %s identical items, use -vv to show" % len(same))
-    elif same:
-        explanation += ["Matching attributes:"]
-        explanation += pprint.pformat(same).splitlines()
+    if same:
+        if verbose < 2:
+            explanation.append(f"Omitting {len(same)} identical items, use -vv to show")
+        else:
+            explanation += ["Matching attributes:"]
+            explanation += pprint.pformat(same).splitlines()
     if diff:
         explanation += ["Differing attributes:"]
         explanation += pprint.pformat(diff).splitlines()
+        indent = "  "
         for field in diff:
             field_left = getattr(left, field)
             field_right = getattr(right, field)
             explanation += [
                 "",
-                "Drill down into differing attribute %s:" % field,
+                f"Drill down into differing attribute {field}:",
                 ("%s%s: %r != %r") % (indent, field, field_left, field_right),
             ]
             explanation += [
@@ -495,7 +481,7 @@ def _notin_text(term: str, text: str, verbose: int = 0) -> List[str]:
         if line.startswith("- "):
             continue
         if line.startswith("+ "):
-            newdiff.append("  " + line[2:])
+            newdiff.append(f"  {line[2:]}")
         else:
             newdiff.append(line)
     return newdiff

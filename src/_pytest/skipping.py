@@ -108,7 +108,7 @@ def evaluate_condition(item: Item, mark: Mark, condition: object) -> Tuple[bool,
                         dictionary
                     )
                 )
-            globals_.update(dictionary)
+            globals_ |= dictionary
         if hasattr(item, "obj"):
             globals_.update(item.obj.__globals__)  # type: ignore[attr-defined]
         try:
@@ -118,7 +118,7 @@ def evaluate_condition(item: Item, mark: Mark, condition: object) -> Tuple[bool,
         except SyntaxError as exc:
             msglines = [
                 "Error evaluating %r condition" % mark.name,
-                "    " + condition,
+                f"    {condition}",
                 "    " + " " * (exc.offset or 0) + "^",
                 "SyntaxError: invalid syntax",
             ]
@@ -126,12 +126,11 @@ def evaluate_condition(item: Item, mark: Mark, condition: object) -> Tuple[bool,
         except Exception as exc:
             msglines = [
                 "Error evaluating %r condition" % mark.name,
-                "    " + condition,
+                f"    {condition}",
                 *traceback.format_exception_only(type(exc), exc),
             ]
             fail("\n".join(msglines), pytrace=False)
 
-    # Boolean condition.
     else:
         try:
             result = bool(condition)
@@ -145,7 +144,7 @@ def evaluate_condition(item: Item, mark: Mark, condition: object) -> Tuple[bool,
     reason = mark.kwargs.get("reason", None)
     if reason is None:
         if isinstance(condition, str):
-            reason = "condition: " + condition
+            reason = f"condition: {condition}"
         else:
             # XXX better be checked at collection time
             msg = (
@@ -187,7 +186,7 @@ def evaluate_skip_marks(item: Item) -> Optional[Skip]:
         try:
             return Skip(*mark.args, **mark.kwargs)
         except TypeError as e:
-            raise TypeError(str(e) + " - maybe you meant pytest.mark.skipif?") from None
+            raise TypeError(f"{str(e)} - maybe you meant pytest.mark.skipif?") from None
 
     return None
 
@@ -233,13 +232,12 @@ xfailed_key = StashKey[Optional[Xfail]]()
 
 @hookimpl(tryfirst=True)
 def pytest_runtest_setup(item: Item) -> None:
-    skipped = evaluate_skip_marks(item)
-    if skipped:
+    if skipped := evaluate_skip_marks(item):
         raise skip.Exception(skipped.reason, _use_item_location=True)
 
     item.stash[xfailed_key] = xfailed = evaluate_xfail_marks(item)
     if xfailed and not item.config.option.runxfail and not xfailed.run:
-        xfail("[NOTRUN] " + xfailed.reason)
+        xfail(f"[NOTRUN] {xfailed.reason}")
 
 
 @hookimpl(hookwrapper=True)
@@ -249,7 +247,7 @@ def pytest_runtest_call(item: Item) -> Generator[None, None, None]:
         item.stash[xfailed_key] = xfailed = evaluate_xfail_marks(item)
 
     if xfailed and not item.config.option.runxfail and not xfailed.run:
-        xfail("[NOTRUN] " + xfailed.reason)
+        xfail(f"[NOTRUN] {xfailed.reason}")
 
     yield
 
@@ -268,7 +266,7 @@ def pytest_runtest_makereport(item: Item, call: CallInfo[None]):
         pass  # don't interfere
     elif call.excinfo and isinstance(call.excinfo.value, xfail.Exception):
         assert call.excinfo.value.msg is not None
-        rep.wasxfail = "reason: " + call.excinfo.value.msg
+        rep.wasxfail = f"reason: {call.excinfo.value.msg}"
         rep.outcome = "skipped"
     elif not rep.skipped and xfailed:
         if call.excinfo:
@@ -281,7 +279,7 @@ def pytest_runtest_makereport(item: Item, call: CallInfo[None]):
         elif call.when == "call":
             if xfailed.strict:
                 rep.outcome = "failed"
-                rep.longrepr = "[XPASS(strict)] " + xfailed.reason
+                rep.longrepr = f"[XPASS(strict)] {xfailed.reason}"
             else:
                 rep.outcome = "passed"
                 rep.wasxfail = xfailed.reason

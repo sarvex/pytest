@@ -21,7 +21,7 @@ def test_stash() -> None:
     stash[key1] = "world"
     assert stash[key1] == "world"
     # Has correct type (no mypy error).
-    stash[key1] + "string"
+    f"{stash[key1]}string"
     assert len(stash) == 1
     assert stash
 

@@ -932,9 +932,9 @@ def test_current_test_env_var(pytester: Pytester, monkeypatch: MonkeyPatch) -> N
     assert result.ret == 0
     test_id = "test_current_test_env_var.py::test"
     assert pytest_current_test_vars == [
-        ("setup", test_id + " (setup)"),
-        ("call", test_id + " (call)"),
-        ("teardown", test_id + " (teardown)"),
+        ("setup", f"{test_id} (setup)"),
+        ("call", f"{test_id} (call)"),
+        ("teardown", f"{test_id} (teardown)"),
     ]
     assert "PYTEST_CURRENT_TEST" not in os.environ
 

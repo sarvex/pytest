@@ -1556,10 +1556,7 @@ def test_is_setup_py_is_a_setup_py(tmp_path: Path, mod: str) -> None:
 @pytest.mark.parametrize("mod", ("setuptools", "distutils.core"))
 def test_is_setup_py_different_encoding(tmp_path: Path, mod: str) -> None:
     setup_py = tmp_path.joinpath("setup.py")
-    contents = (
-        "# -*- coding: cp1252 -*-\n"
-        'from {} import setup; setup(name="foo", description="€")\n'.format(mod)
-    )
+    contents = f'# -*- coding: cp1252 -*-\nfrom {mod} import setup; setup(name="foo", description="€")\n'
     setup_py.write_bytes(contents.encode("cp1252"))
     assert _is_setup_py(setup_py)
 

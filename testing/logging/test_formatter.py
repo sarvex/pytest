@@ -129,7 +129,7 @@ def test_multiline_message() -> None:
     )
 
     # anything other than string or int will default to False
-    record.auto_indent = dict()
+    record.auto_indent = {}
     output = ai_off_style.format(record)
     assert output == (
         "dummypath                   10 INFO     Test Message line1\nline2"

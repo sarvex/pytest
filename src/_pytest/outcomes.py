@@ -294,14 +294,13 @@ def importorskip(
     if minversion is None:
         return mod
     verattr = getattr(mod, "__version__", None)
-    if minversion is not None:
-        # Imported lazily to improve start-up time.
-        from packaging.version import Version
+    # Imported lazily to improve start-up time.
+    from packaging.version import Version
 
-        if verattr is None or Version(verattr) < Version(minversion):
-            raise Skipped(
-                "module %r has __version__ %r, required is: %r"
-                % (modname, verattr, minversion),
-                allow_module_level=True,
-            )
+    if verattr is None or Version(verattr) < Version(minversion):
+        raise Skipped(
+            "module %r has __version__ %r, required is: %r"
+            % (modname, verattr, minversion),
+            allow_module_level=True,
+        )
     return mod

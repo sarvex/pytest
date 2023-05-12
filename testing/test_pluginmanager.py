@@ -87,7 +87,7 @@ class TestPytestPluginInteractions:
                 values.append(self)
 
         config.pluginmanager.register(A())
-        assert len(values) == 0
+        assert not values
         config._do_configure()
         assert len(values) == 1
         config.pluginmanager.register(A())  # leads to a configured() plugin

@@ -113,9 +113,7 @@ class ConftestImportFailure(Exception):
         self.excinfo = excinfo
 
     def __str__(self) -> str:
-        return "{}: {} (from {})".format(
-            self.excinfo[0].__name__, self.excinfo[1], self.path
-        )
+        return f"{self.excinfo[0].__name__}: {self.excinfo[1]} (from {self.path})"
 
 
 def filter_traceback_for_conftest_import_failure(
@@ -332,10 +330,7 @@ def _prepareconfig(
 
 def _get_directory(path: Path) -> Path:
     """Get the directory of a path - itself if already a directory."""
-    if path.is_file():
-        return path.parent
-    else:
-        return path
+    return path.parent if path.is_file() else path
 
 
 @final
@@ -419,7 +414,7 @@ class PytestPluginManager(PluginManager):
             return
 
         # Collect unmarked hooks as long as they have the `pytest_' prefix.
-        if opts is None and name.startswith("pytest_"):
+        if opts is None:
             opts = {}
         if opts is not None:
             # TODO: DeprecationWarning, people should use hookimpl
@@ -432,19 +427,18 @@ class PytestPluginManager(PluginManager):
 
     def parse_hookspec_opts(self, module_or_class, name: str):
         opts = super().parse_hookspec_opts(module_or_class, name)
-        if opts is None:
+        if opts is None and name.startswith("pytest_"):
             method = getattr(module_or_class, name)
 
-            if name.startswith("pytest_"):
-                # todo: deprecate hookspec hacks
-                # https://github.com/pytest-dev/pytest/issues/4562
-                known_marks = {m.name for m in getattr(method, "pytestmark", [])}
-                opts = {
-                    "firstresult": hasattr(method, "firstresult")
-                    or "firstresult" in known_marks,
-                    "historic": hasattr(method, "historic")
-                    or "historic" in known_marks,
-                }
+            # todo: deprecate hookspec hacks
+            # https://github.com/pytest-dev/pytest/issues/4562
+            known_marks = {m.name for m in getattr(method, "pytestmark", [])}
+            opts = {
+                "firstresult": hasattr(method, "firstresult")
+                or "firstresult" in known_marks,
+                "historic": hasattr(method, "historic")
+                or "historic" in known_marks,
+            }
         return opts
 
     def register(
@@ -453,10 +447,7 @@ class PytestPluginManager(PluginManager):
         if name in _pytest.deprecated.DEPRECATED_EXTERNAL_PLUGINS:
             warnings.warn(
                 PytestConfigWarning(
-                    "{} plugin has been merged into the core, "
-                    "please remove it from your requirements.".format(
-                        name.replace("_", "-")
-                    )
+                    f'{name.replace("_", "-")} plugin has been merged into the core, please remove it from your requirements.'
                 )
             )
             return None
@@ -682,7 +673,7 @@ class PytestPluginManager(PluginManager):
         if arg.startswith("no:"):
             name = arg[3:]
             if name in essential_plugins:
-                raise UsageError("plugin %s cannot be disabled" % name)
+                raise UsageError(f"plugin {name} cannot be disabled")
 
             # PR #4304: remove stepwise if cacheprovider is blocked.
             if name == "cacheprovider":
@@ -691,17 +682,19 @@ class PytestPluginManager(PluginManager):
 
             self.set_blocked(name)
             if not name.startswith("pytest_"):
-                self.set_blocked("pytest_" + name)
+                self.set_blocked(f"pytest_{name}")
         else:
             name = arg
             # Unblock the plugin.  None indicates that it has been blocked.
             # There is no interface with pluggy for this.
             if self._name2plugin.get(name, -1) is None:
                 del self._name2plugin[name]
-            if not name.startswith("pytest_"):
-                if self._name2plugin.get("pytest_" + name, -1) is None:
-                    del self._name2plugin["pytest_" + name]
-            self.import_plugin(arg, consider_entry_points=True)
+            if (
+                not name.startswith("pytest_")
+                and self._name2plugin.get(f"pytest_{name}", -1) is None
+            ):
+                del self._name2plugin[f"pytest_{name}"]
+            self.import_plugin(name, consider_entry_points=True)
 
     def consider_conftest(self, conftestmodule: types.ModuleType) -> None:
         """:meta private:"""
@@ -738,12 +731,13 @@ class PytestPluginManager(PluginManager):
         if self.is_blocked(modname) or self.get_plugin(modname) is not None:
             return
 
-        importspec = "_pytest." + modname if modname in builtin_plugins else modname
+        importspec = f"_pytest.{modname}" if modname in builtin_plugins else modname
         self.rewrite_hook.mark_rewrite(importspec)
 
         if consider_entry_points:
-            loaded = self.load_setuptools_entrypoints("pytest11", name=modname)
-            if loaded:
+            if loaded := self.load_setuptools_entrypoints(
+                "pytest11", name=modname
+            ):
                 return
 
         try:
@@ -854,8 +848,7 @@ def _iter_rewritable_modules(package_files: Iterable[str]) -> Iterator[str]:
         new_package_files = []
         for fn in package_files:
             parts = fn.split("/")
-            new_fn = "/".join(parts[1:])
-            if new_fn:
+            if new_fn := "/".join(parts[1:]):
                 new_package_files.append(new_fn)
         if new_package_files:
             yield from _iter_rewritable_modules(new_package_files)
@@ -1044,10 +1037,7 @@ class Config:
         excinfo: ExceptionInfo[BaseException],
         option: Optional[argparse.Namespace] = None,
     ) -> None:
-        if option and getattr(option, "fulltrace", False):
-            style: _TracebackStyle = "long"
-        else:
-            style = "native"
+        style = "long" if option and getattr(option, "fulltrace", False) else "native"
         excrepr = excinfo.getrepr(
             funcargs=True, showlocals=getattr(option, "showlocals", False), style=style
         )
@@ -1078,9 +1068,8 @@ class Config:
         for name in opt._short_opts + opt._long_opts:
             self._opt2dest[name] = opt.dest
 
-        if hasattr(opt, "default"):
-            if not hasattr(self.option, opt.dest):
-                setattr(self.option, opt.dest, opt.default)
+        if hasattr(opt, "default") and not hasattr(self.option, opt.dest):
+            setattr(self.option, opt.dest, opt.default)
 
     @hookimpl(trylast=True)
     def pytest_load_initial_conftests(self, early_config: "Config") -> None:
@@ -1231,24 +1220,16 @@ class Config:
     def _checkversion(self) -> None:
         import pytest
 
-        minver = self.inicfg.get("minversion", None)
-        if minver:
+        if minver := self.inicfg.get("minversion", None):
             # Imported lazily to improve start-up time.
             from packaging.version import Version
 
             if not isinstance(minver, str):
-                raise pytest.UsageError(
-                    "%s: 'minversion' must be a single value" % self.inipath
-                )
+                raise pytest.UsageError(f"{self.inipath}: 'minversion' must be a single value")
 
             if Version(minver) > Version(pytest.__version__):
                 raise pytest.UsageError(
-                    "%s: 'minversion' requires pytest-%s, actual pytest-%s'"
-                    % (
-                        self.inipath,
-                        minver,
-                        pytest.__version__,
-                    )
+                    f"{self.inipath}: 'minversion' requires pytest-{minver}, actual pytest-{pytest.__version__}'"
                 )
 
     def _validate_config_options(self) -> None:
@@ -1283,9 +1264,7 @@ class Config:
                 missing_plugins.append(required_plugin)
 
         if missing_plugins:
-            raise UsageError(
-                "Missing required plugins: {}".format(", ".join(missing_plugins)),
-            )
+            raise UsageError(f'Missing required plugins: {", ".join(missing_plugins)}')
 
     def _warn_or_fail_if_strict(self, message: str) -> None:
         if self.known_args_namespace.strict_config:
@@ -1313,11 +1292,10 @@ class Config:
             args = self._parser.parse_setoption(
                 args, self.option, namespace=self.option
             )
+            if not args and self.invocation_params.dir == self.rootpath:
+                args = self.getini("testpaths")
             if not args:
-                if self.invocation_params.dir == self.rootpath:
-                    args = self.getini("testpaths")
-                if not args:
-                    args = [str(self.invocation_params.dir)]
+                args = [str(self.invocation_params.dir)]
             self.args = args
         except PrintHelp:
             pass
@@ -1396,9 +1374,7 @@ class Config:
             except KeyError:
                 if default is not None:
                     return default
-                if type is None:
-                    return ""
-                return []
+                return "" if type is None else []
         else:
             value = override_value
         # Coerce the values based on types.
@@ -1582,9 +1558,9 @@ def _strtobool(val: str) -> bool:
     .. note:: Copied from distutils.util.
     """
     val = val.lower()
-    if val in ("y", "yes", "t", "true", "on", "1"):
+    if val in {"y", "yes", "t", "true", "on", "1"}:
         return True
-    elif val in ("n", "no", "f", "false", "off", "0"):
+    elif val in {"n", "no", "f", "false", "off", "0"}:
         return False
     else:
         raise ValueError(f"invalid truth value {val!r}")

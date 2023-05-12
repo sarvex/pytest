@@ -216,17 +216,11 @@ def test_cached_property() -> None:
 def test_assert_never_union() -> None:
     x: Union[int, str] = 10
 
-    if isinstance(x, int):
-        pass
-    else:
+    if not isinstance(x, int):
         with pytest.raises(AssertionError):
             assert_never(x)  # type: ignore[arg-type]
 
-    if isinstance(x, int):
-        pass
-    elif isinstance(x, str):
-        pass
-    else:
+    if not isinstance(x, int) and not isinstance(x, str):
         assert_never(x)
 
 
@@ -234,32 +228,20 @@ def test_assert_never_enum() -> None:
     E = enum.Enum("E", "a b")
     x: E = E.a
 
-    if x is E.a:
-        pass
-    else:
+    if x is not E.a:
         with pytest.raises(AssertionError):
             assert_never(x)  # type: ignore[arg-type]
 
-    if x is E.a:
-        pass
-    elif x is E.b:
-        pass
-    else:
+    if x is not E.a and x is not E.b:
         assert_never(x)
 
 
 def test_assert_never_literal() -> None:
     x: Literal["a", "b"] = "a"
 
-    if x == "a":
-        pass
-    else:
+    if x != "a":
         with pytest.raises(AssertionError):
             assert_never(x)  # type: ignore[arg-type]
 
-    if x == "a":
-        pass
-    elif x == "b":
-        pass
-    else:
+    if x not in ["a", "b"]:
         assert_never(x)

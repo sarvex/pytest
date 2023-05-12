@@ -87,24 +87,22 @@ class Scanner:
             elif input[pos] == ")":
                 yield Token(TokenType.RPAREN, ")", pos)
                 pos += 1
-            else:
-                match = re.match(r"(:?\w|:|\+|-|\.|\[|\]|\\|/)+", input[pos:])
-                if match:
-                    value = match.group(0)
-                    if value == "or":
-                        yield Token(TokenType.OR, value, pos)
-                    elif value == "and":
-                        yield Token(TokenType.AND, value, pos)
-                    elif value == "not":
-                        yield Token(TokenType.NOT, value, pos)
-                    else:
-                        yield Token(TokenType.IDENT, value, pos)
-                    pos += len(value)
+            elif match := re.match(r"(:?\w|:|\+|-|\.|\[|\]|\\|/)+", input[pos:]):
+                value = match[0]
+                if value == "or":
+                    yield Token(TokenType.OR, value, pos)
+                elif value == "and":
+                    yield Token(TokenType.AND, value, pos)
+                elif value == "not":
+                    yield Token(TokenType.NOT, value, pos)
                 else:
-                    raise ParseError(
-                        pos + 1,
-                        f'unexpected character "{input[pos]}"',
-                    )
+                    yield Token(TokenType.IDENT, value, pos)
+                pos += len(value)
+            else:
+                raise ParseError(
+                    pos + 1,
+                    f'unexpected character "{input[pos]}"',
+                )
         yield Token(TokenType.EOF, "", pos)
 
     def accept(self, type: TokenType, *, reject: bool = False) -> Optional[Token]:
@@ -120,10 +118,7 @@ class Scanner:
     def reject(self, expected: Sequence[TokenType]) -> "NoReturn":
         raise ParseError(
             self.current.pos + 1,
-            "expected {}; got {}".format(
-                " OR ".join(type.value for type in expected),
-                self.current.type.value,
-            ),
+            f'expected {" OR ".join(type.value for type in expected)}; got {self.current.type.value}',
         )
 
 
@@ -165,8 +160,7 @@ def not_expr(s: Scanner) -> ast.expr:
         ret = expr(s)
         s.accept(TokenType.RPAREN, reject=True)
         return ret
-    ident = s.accept(TokenType.IDENT)
-    if ident:
+    if ident := s.accept(TokenType.IDENT):
         return ast.Name(IDENT_PREFIX + ident.value, ast.Load())
     s.reject((TokenType.NOT, TokenType.LPAREN, TokenType.IDENT))
 
@@ -199,7 +193,7 @@ class Expression:
         self.code = code
 
     @classmethod
-    def compile(self, input: str) -> "Expression":
+    def compile(cls, input: str) -> "Expression":
         """Compile a match expression.
 
         :param input: The input expression - one line.

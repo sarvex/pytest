@@ -299,8 +299,7 @@ class DoctestItem(pytest.Item):
         """Disable output capturing. Otherwise, stdout is lost to doctest (#985)."""
         if platform.system() != "Darwin":
             return
-        capman = self.config.pluginmanager.getplugin("capturemanager")
-        if capman:
+        if capman := self.config.pluginmanager.getplugin("capturemanager"):
             capman.suspend_global_capture(in_=True)
             out, err = capman.read_global_capture()
             sys.stdout.write(out)
@@ -331,10 +330,7 @@ class DoctestItem(pytest.Item):
             example = failure.example
             test = failure.test
             filename = test.filename
-            if test.lineno is None:
-                lineno = None
-            else:
-                lineno = test.lineno + example.lineno + 1
+            lineno = None if test.lineno is None else test.lineno + example.lineno + 1
             message = type(failure).__name__
             # TODO: ReprFileLocation doesn't expect a None lineno.
             reprlocation = ReprFileLocation(filename, lineno, message)  # type: ignore[arg-type]
@@ -364,7 +360,7 @@ class DoctestItem(pytest.Item):
                 ).split("\n")
             else:
                 inner_excinfo = ExceptionInfo.from_exc_info(failure.exc_info)
-                lines += ["UNEXPECTED EXCEPTION: %s" % repr(inner_excinfo.value)]
+                lines += [f"UNEXPECTED EXCEPTION: {repr(inner_excinfo.value)}"]
                 lines += [
                     x.strip("\n") for x in traceback.format_exception(*failure.exc_info)
                 ]
@@ -373,7 +369,7 @@ class DoctestItem(pytest.Item):
 
     def reportinfo(self) -> Tuple[Union["os.PathLike[str]", str], Optional[int], str]:
         assert self.dtest is not None
-        return self.path, self.dtest.lineno, "[doctest] %s" % self.name
+        return self.path, self.dtest.lineno, f"[doctest] {self.name}"
 
 
 def _get_flag_lookup() -> Dict[str, int]:
@@ -403,11 +399,8 @@ def get_optionflags(parent):
 
 def _get_continue_on_failure(config):
     continue_on_failure = config.getvalue("doctest_continue_on_failure")
-    if continue_on_failure:
-        # We need to turn off this if we use pdb since we should stop at
-        # the first failure.
-        if config.getvalue("usepdb"):
-            continue_on_failure = False
+    if continue_on_failure and config.getvalue("usepdb"):
+        continue_on_failure = False
     return continue_on_failure
 
 
@@ -731,4 +724,4 @@ def _get_report_choice(key: str) -> int:
 def doctest_namespace() -> Dict[str, Any]:
     """Fixture that returns a :py:class:`dict` that will be injected into the
     namespace of doctests."""
-    return dict()
+    return {}

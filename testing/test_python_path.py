@@ -107,4 +107,4 @@ def test_clean_up(pytester: Pytester) -> None:
     assert before is not None
     assert after is not None
     assert any("I_SHALL_BE_REMOVED" in entry for entry in before)
-    assert not any("I_SHALL_BE_REMOVED" in entry for entry in after)
+    assert all("I_SHALL_BE_REMOVED" not in entry for entry in after)

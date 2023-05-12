@@ -11,8 +11,7 @@ def freeze_includes() -> List[str]:
     included by cx_freeze."""
     import _pytest
 
-    result = list(_iter_all_modules(_pytest))
-    return result
+    return list(_iter_all_modules(_pytest))
 
 
 def _iter_all_modules(
@@ -35,10 +34,10 @@ def _iter_all_modules(
         # Type ignored because typeshed doesn't define ModuleType.__path__
         # (only defined on packages).
         package_path = package.__path__  # type: ignore[attr-defined]
-        path, prefix = package_path[0], package.__name__ + "."
+        path, prefix = package_path[0], f"{package.__name__}."
     for _, name, is_package in pkgutil.iter_modules([path]):
         if is_package:
-            for m in _iter_all_modules(os.path.join(path, name), prefix=name + "."):
+            for m in _iter_all_modules(os.path.join(path, name), prefix=f"{name}."):
                 yield prefix + m
         else:
             yield prefix + name

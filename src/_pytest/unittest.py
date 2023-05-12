@@ -96,26 +96,24 @@ class UnitTestCase(Class):
     def _inject_setup_teardown_fixtures(self, cls: type) -> None:
         """Injects a hidden auto-use fixture to invoke setUpClass/setup_method and corresponding
         teardown functions (#517)."""
-        class_fixture = _make_xunit_fixture(
+        if class_fixture := _make_xunit_fixture(
             cls,
             "setUpClass",
             "tearDownClass",
             "doClassCleanups",
             scope=Scope.Class,
             pass_self=False,
-        )
-        if class_fixture:
+        ):
             cls.__pytest_class_setup = class_fixture  # type: ignore[attr-defined]
 
-        method_fixture = _make_xunit_fixture(
+        if method_fixture := _make_xunit_fixture(
             cls,
             "setup_method",
             "teardown_method",
             None,
             scope=Scope.Function,
             pass_self=True,
-        )
-        if method_fixture:
+        ):
             cls.__pytest_method_setup = method_fixture  # type: ignore[attr-defined]
 
 
@@ -274,7 +272,7 @@ class TestCaseFunction(Function):
         reason: str = "",
     ) -> None:
         try:
-            xfail(str(reason))
+            xfail(reason)
         except xfail.Exception:
             self._addexcinfo(sys.exc_info())
 
@@ -332,22 +330,20 @@ class TestCaseFunction(Function):
         self, excinfo: _pytest._code.ExceptionInfo[BaseException]
     ) -> None:
         super()._prunetraceback(excinfo)
-        traceback = excinfo.traceback.filter(
+        if traceback := excinfo.traceback.filter(
             lambda x: not x.frame.f_globals.get("__unittest")
-        )
-        if traceback:
+        ):
             excinfo.traceback = traceback
 
 
 @hookimpl(tryfirst=True)
 def pytest_runtest_makereport(item: Item, call: CallInfo[None]) -> None:
-    if isinstance(item, TestCaseFunction):
-        if item._excinfo:
-            call.excinfo = item._excinfo.pop(0)
-            try:
-                del call.result
-            except AttributeError:
-                pass
+    if isinstance(item, TestCaseFunction) and item._excinfo:
+        call.excinfo = item._excinfo.pop(0)
+        try:
+            del call.result
+        except AttributeError:
+            pass
 
     # Convert unittest.SkipTest to pytest.skip.
     # This is actually only needed for nose, which reuses unittest.SkipTest for
@@ -411,4 +407,4 @@ def check_testcase_implements_trial_reporter(done: List[int] = []) -> None:
 
 def _is_skipped(obj) -> bool:
     """Return True if the given object has been marked with @unittest.skip."""
-    return bool(getattr(obj, "__unittest_skip__", False))
+    return getattr(obj, "__unittest_skip__", False)

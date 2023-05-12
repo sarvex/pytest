@@ -199,10 +199,7 @@ def get_default_arg_names(function: Callable[..., Any]) -> Tuple[str, ...]:
 
 _non_printable_ascii_translate_table = {
     i: f"\\x{i:02x}" for i in range(128) if i not in range(32, 127)
-}
-_non_printable_ascii_translate_table.update(
-    {ord("\t"): "\\t", ord("\r"): "\\r", ord("\n"): "\\n"}
-)
+} | {ord("\t"): "\\t", ord("\r"): "\\r", ord("\n"): "\\n"}
 
 
 def _translate_non_printable(s: str) -> str:

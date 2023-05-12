@@ -44,9 +44,7 @@ class Option:
 
     @property
     def args(self):
-        values = []
-        values.append("--verbosity=%d" % self.verbosity)
-        return values
+        return ["--verbosity=%d" % self.verbosity]
 
 
 @pytest.fixture(
@@ -123,7 +121,7 @@ class TestTerminal:
         rep.write_line("hello world")
         lines = linecomp.stringio.getvalue().split("\n")
         assert not lines[0]
-        assert lines[1].endswith(modcol.name + " .")
+        assert lines[1].endswith(f"{modcol.name} .")
         assert lines[2] == "hello world"
 
     def test_show_runtest_logstart(self, pytester: Pytester, linecomp) -> None:
@@ -860,13 +858,7 @@ class TestTerminalFunctional:
         result.stdout.fnmatch_lines(
             [
                 "*===== test session starts ====*",
-                "platform %s -- Python %s*pytest-%s**pluggy-%s"
-                % (
-                    sys.platform,
-                    verinfo,
-                    pytest.__version__,
-                    pluggy.__version__,
-                ),
+                f"platform {sys.platform} -- Python {verinfo}*pytest-{pytest.__version__}**pluggy-{pluggy.__version__}",
                 "*test_header_trailer_info.py .*",
                 "=* 1 passed*in *.[0-9][0-9]s *=",
             ]
@@ -887,13 +879,7 @@ class TestTerminalFunctional:
         result = pytester.runpytest("--no-header")
         verinfo = ".".join(map(str, sys.version_info[:3]))
         result.stdout.no_fnmatch_line(
-            "platform %s -- Python %s*pytest-%s**pluggy-%s"
-            % (
-                sys.platform,
-                verinfo,
-                pytest.__version__,
-                pluggy.__version__,
-            )
+            f"platform {sys.platform} -- Python {verinfo}*pytest-{pytest.__version__}**pluggy-{pluggy.__version__}"
         )
         if request.config.pluginmanager.list_plugin_distinfo():
             result.stdout.no_fnmatch_line("plugins: *")
@@ -944,9 +930,7 @@ class TestTerminalFunctional:
         result = pytester.runpytest()
         result.stdout.fnmatch_lines(
             [
-                "rootdir: *absolute_testpath0, configfile: pyproject.toml, testpaths: {}".format(
-                    tests
-                )
+                f"rootdir: *absolute_testpath0, configfile: pyproject.toml, testpaths: {tests}"
             ]
         )
 
@@ -1397,7 +1381,7 @@ def test_tbstyle_short(pytester: Pytester) -> None:
     s = result.stdout.str()
     assert "arg = 42" not in s
     assert "x = 0" not in s
-    result.stdout.fnmatch_lines(["*%s:8*" % p.name, "    assert x", "E   assert*"])
+    result.stdout.fnmatch_lines([f"*{p.name}:8*", "    assert x", "E   assert*"])
     result = pytester.runpytest()
     s = result.stdout.str()
     assert "x = 0" in s
@@ -1473,8 +1457,8 @@ class TestGenericReporting:
         """
         )
         for tbopt in ["long", "short", "no"]:
-            print("testing --tb=%s..." % tbopt)
-            result = pytester.runpytest("-rN", "--tb=%s" % tbopt)
+            print(f"testing --tb={tbopt}...")
+            result = pytester.runpytest("-rN", f"--tb={tbopt}")
             s = result.stdout.str()
             if tbopt == "long":
                 assert "print(6*7)" in s
@@ -1504,7 +1488,7 @@ class TestGenericReporting:
         result = pytester.runpytest("--tb=line")
         bn = p.name
         result.stdout.fnmatch_lines(
-            ["*%s:3: IndexError*" % bn, "*%s:8: AssertionError: hello*" % bn]
+            [f"*{bn}:3: IndexError*", f"*{bn}:8: AssertionError: hello*"]
         )
         s = result.stdout.str()
         assert "def test_func2" not in s
@@ -1897,7 +1881,6 @@ def test_summary_stats(
 ) -> None:
     tr.stats = stats_arg
 
-    # Fake "_is_last_item" to be True.
     class fake_session:
         testscollected = 0
 
@@ -1907,7 +1890,7 @@ def test_summary_stats(
     # Reset cache.
     tr._main_color = None
 
-    print("Based on stats: %s" % stats_arg)
+    print(f"Based on stats: {stats_arg}")
     print(f'Expect summary: "{exp_line}"; with color "{exp_color}"')
     (line, color) = tr.build_summary_stats_line()
     print(f'Actually got:   "{line}"; with color "{color}"')

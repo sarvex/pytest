@@ -201,19 +201,19 @@ class Node(metaclass=NodeMeta):
         if config:
             #: The pytest config object.
             self.config: Config = config
-        else:
-            if not parent:
-                raise TypeError("config or parent must be provided")
+        elif parent:
             self.config = parent.config
 
+        else:
+            raise TypeError("config or parent must be provided")
         if session:
             #: The pytest session this node is part of.
             self.session = session
-        else:
-            if not parent:
-                raise TypeError("session or parent must be provided")
+        elif parent:
             self.session = parent.session
 
+        else:
+            raise TypeError("session or parent must be provided")
         if path is None and fspath is None:
             path = getattr(parent, "path", None)
         #: Filesystem path where this node was collected from (can be None).
@@ -232,11 +232,11 @@ class Node(metaclass=NodeMeta):
         if nodeid is not None:
             assert "::()" not in nodeid
             self._nodeid = nodeid
-        else:
-            if not self.parent:
-                raise TypeError("nodeid or parent must be provided")
-            self._nodeid = self.parent.nodeid + "::" + self.name
+        elif self.parent:
+            self._nodeid = f"{self.parent.nodeid}::{self.name}"
 
+        else:
+            raise TypeError("nodeid or parent must be provided")
         #: A place where plugins can store information on the node for their
         #: own use.
         #:
@@ -269,7 +269,7 @@ class Node(metaclass=NodeMeta):
         return self.session.gethookproxy(self.path)
 
     def __repr__(self) -> str:
-        return "<{} {}>".format(self.__class__.__name__, getattr(self, "name", None))
+        return f'<{self.__class__.__name__} {getattr(self, "name", None)}>'
 
     def warn(self, warning: Warning) -> None:
         """Issue a warning for this Node.
@@ -435,9 +435,8 @@ class Node(metaclass=NodeMeta):
 
         if isinstance(excinfo.value, ConftestImportFailure):
             excinfo = ExceptionInfo.from_exc_info(excinfo.value.excinfo)
-        if isinstance(excinfo.value, fail.Exception):
-            if not excinfo.value.pytrace:
-                style = "value"
+        if isinstance(excinfo.value, fail.Exception) and not excinfo.value.pytrace:
+            style = "value"
         if isinstance(excinfo.value, FixtureLookupError):
             return excinfo.value.formatrepr()
         if self.config.getoption("fulltrace", False):
@@ -456,11 +455,7 @@ class Node(metaclass=NodeMeta):
             else:
                 style = "long"
 
-        if self.config.getoption("verbose", 0) > 1:
-            truncate_locals = False
-        else:
-            truncate_locals = True
-
+        truncate_locals = self.config.getoption("verbose", 0) <= 1
         # excinfo.getrepr() formats paths relative to the CWD if `abspath` is False.
         # It is possible for a fixture/test to change the CWD while this code runs, which
         # would then result in the user seeing confusing paths in the failure message.
@@ -701,10 +696,9 @@ class Item(Node):
             return
         setattr(cls, attr_name, True)
 
-        problems = ", ".join(
+        if problems := ", ".join(
             base.__name__ for base in cls.__bases__ if issubclass(base, Collector)
-        )
-        if problems:
+        ):
             warnings.warn(
                 f"{cls.__name__} is an Item subclass and should not be a collector, "
                 f"however its bases {problems} are collectors.\n"

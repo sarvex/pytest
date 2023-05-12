@@ -98,9 +98,8 @@ class TerminalWriter:
         for name in markup:
             if name not in self._esctable:
                 raise ValueError(f"unknown markup: {name!r}")
-        if self.hasmarkup:
-            esc = [self._esctable[name] for name, on in markup.items() if on]
-            if esc:
+        if esc := [self._esctable[name] for name, on in markup.items() if on]:
+            if self.hasmarkup:
                 text = "".join("\x1b[%sm" % cod for cod in esc) + text + "\x1b[0m"
         return text
 
@@ -182,9 +181,7 @@ class TerminalWriter:
         """
         if indents and len(indents) != len(lines):
             raise ValueError(
-                "indents size ({}) should have same size as lines ({})".format(
-                    len(indents), len(lines)
-                )
+                f"indents size ({len(indents)}) should have same size as lines ({len(lines)})"
             )
         if not indents:
             indents = [""] * len(lines)
@@ -219,15 +216,9 @@ class TerminalWriter:
                 return highlighted
             except pygments.util.ClassNotFound:
                 raise UsageError(
-                    "PYTEST_THEME environment variable had an invalid value: '{}'. "
-                    "Only valid pygment styles are allowed.".format(
-                        os.getenv("PYTEST_THEME")
-                    )
+                    f"""PYTEST_THEME environment variable had an invalid value: '{os.getenv("PYTEST_THEME")}'. Only valid pygment styles are allowed."""
                 )
             except pygments.util.OptionError:
                 raise UsageError(
-                    "PYTEST_THEME_MODE environment variable had an invalid value: '{}'. "
-                    "The only allowed values are 'dark' and 'light'.".format(
-                        os.getenv("PYTEST_THEME_MODE")
-                    )
+                    f"""PYTEST_THEME_MODE environment variable had an invalid value: '{os.getenv("PYTEST_THEME_MODE")}'. The only allowed values are 'dark' and 'light'."""
                 )

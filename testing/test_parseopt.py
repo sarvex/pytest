@@ -305,14 +305,12 @@ def test_argcomplete(pytester: Pytester, monkeypatch: MonkeyPatch) -> None:
 
     script = str(pytester.path.joinpath("test_argcomplete"))
 
-    with open(str(script), "w") as fp:
+    with open(script, "w") as fp:
         # redirect output from argcomplete to stdin and stderr is not trivial
         # http://stackoverflow.com/q/12589419/1307905
         # so we use bash
         fp.write(
-            'COMP_WORDBREAKS="$COMP_WORDBREAKS" {} -m pytest 8>&1 9>&2'.format(
-                shlex.quote(sys.executable)
-            )
+            f'COMP_WORDBREAKS="$COMP_WORDBREAKS" {shlex.quote(sys.executable)} -m pytest 8>&1 9>&2'
         )
     # alternative would be extended Pytester.{run(),_run(),popen()} to be able
     # to handle a keyword argument env that replaces os.environ in popen or
@@ -322,9 +320,9 @@ def test_argcomplete(pytester: Pytester, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setenv("COMP_WORDBREAKS", " \\t\\n\"\\'><=;|&(:")
 
     arg = "--fu"
-    monkeypatch.setenv("COMP_LINE", "pytest " + arg)
-    monkeypatch.setenv("COMP_POINT", str(len("pytest " + arg)))
-    result = pytester.run("bash", str(script), arg)
+    monkeypatch.setenv("COMP_LINE", f"pytest {arg}")
+    monkeypatch.setenv("COMP_POINT", str(len(f"pytest {arg}")))
+    result = pytester.run("bash", script, arg)
     if result.ret == 255:
         # argcomplete not found
         pytest.skip("argcomplete not available")
@@ -338,7 +336,7 @@ def test_argcomplete(pytester: Pytester, monkeypatch: MonkeyPatch) -> None:
         result.stdout.fnmatch_lines(["--funcargs", "--fulltrace"])
     os.mkdir("test_argcomplete.d")
     arg = "test_argc"
-    monkeypatch.setenv("COMP_LINE", "pytest " + arg)
-    monkeypatch.setenv("COMP_POINT", str(len("pytest " + arg)))
-    result = pytester.run("bash", str(script), arg)
+    monkeypatch.setenv("COMP_LINE", f"pytest {arg}")
+    monkeypatch.setenv("COMP_POINT", str(len(f"pytest {arg}")))
+    result = pytester.run("bash", script, arg)
     result.stdout.fnmatch_lines(["test_argcomplete", "test_argcomplete.d/"])

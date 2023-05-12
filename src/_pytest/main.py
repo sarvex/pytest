@@ -237,9 +237,7 @@ def validate_basetemp(path: str) -> str:
 
     def is_ancestor(base: Path, query: Path) -> bool:
         """Return whether query is an ancestor of base."""
-        if base == query:
-            return True
-        return query in base.parents
+        return True if base == query else query in base.parents
 
     # check if path is an ancestor of cwd
     if is_ancestor(Path.cwd(), Path(path).absolute()):
@@ -260,39 +258,38 @@ def wrap_session(
     session.exitstatus = ExitCode.OK
     initstate = 0
     try:
+        config._do_configure()
+        initstate = 1
+        config.hook.pytest_sessionstart(session=session)
+        initstate = 2
+        session.exitstatus = doit(config, session) or 0
+    except UsageError:
+        session.exitstatus = ExitCode.USAGE_ERROR
+        raise
+    except Failed:
+        session.exitstatus = ExitCode.TESTS_FAILED
+    except (KeyboardInterrupt, exit.Exception):
+        excinfo = _pytest._code.ExceptionInfo.from_current()
+        exitstatus: Union[int, ExitCode] = ExitCode.INTERRUPTED
+        if isinstance(excinfo.value, exit.Exception):
+            if excinfo.value.returncode is not None:
+                exitstatus = excinfo.value.returncode
+            if initstate < 2:
+                sys.stderr.write(f"{excinfo.typename}: {excinfo.value.msg}\n")
+        config.hook.pytest_keyboard_interrupt(excinfo=excinfo)
+        session.exitstatus = exitstatus
+    except BaseException:
+        session.exitstatus = ExitCode.INTERNAL_ERROR
+        excinfo = _pytest._code.ExceptionInfo.from_current()
         try:
-            config._do_configure()
-            initstate = 1
-            config.hook.pytest_sessionstart(session=session)
-            initstate = 2
-            session.exitstatus = doit(config, session) or 0
-        except UsageError:
-            session.exitstatus = ExitCode.USAGE_ERROR
-            raise
-        except Failed:
-            session.exitstatus = ExitCode.TESTS_FAILED
-        except (KeyboardInterrupt, exit.Exception):
-            excinfo = _pytest._code.ExceptionInfo.from_current()
-            exitstatus: Union[int, ExitCode] = ExitCode.INTERRUPTED
-            if isinstance(excinfo.value, exit.Exception):
-                if excinfo.value.returncode is not None:
-                    exitstatus = excinfo.value.returncode
-                if initstate < 2:
-                    sys.stderr.write(f"{excinfo.typename}: {excinfo.value.msg}\n")
-            config.hook.pytest_keyboard_interrupt(excinfo=excinfo)
-            session.exitstatus = exitstatus
-        except BaseException:
-            session.exitstatus = ExitCode.INTERNAL_ERROR
-            excinfo = _pytest._code.ExceptionInfo.from_current()
-            try:
-                config.notify_exception(excinfo, config.option)
-            except exit.Exception as exc:
-                if exc.returncode is not None:
-                    session.exitstatus = exc.returncode
-                sys.stderr.write(f"{type(exc).__name__}: {exc}\n")
-            else:
-                if isinstance(excinfo.value, SystemExit):
-                    sys.stderr.write("mainloop: caught unexpected SystemExit!\n")
+            config.notify_exception(excinfo, config.option)
+        except exit.Exception as exc:
+            if exc.returncode is not None:
+                session.exitstatus = exc.returncode
+            sys.stderr.write(f"{type(exc).__name__}: {exc}\n")
+        else:
+            if isinstance(excinfo.value, SystemExit):
+                sys.stderr.write("mainloop: caught unexpected SystemExit!\n")
 
     finally:
         # Explicitly break reference cycle.
@@ -377,8 +374,7 @@ def pytest_ignore_collect(collection_path: Path, config: Config) -> Optional[boo
         "collect_ignore", path=collection_path.parent, rootpath=config.rootpath
     )
     ignore_paths = ignore_paths or []
-    excludeopt = config.getoption("ignore")
-    if excludeopt:
+    if excludeopt := config.getoption("ignore"):
         ignore_paths.extend(absolutepath(x) for x in excludeopt)
 
     if collection_path in ignore_paths:
@@ -388,17 +384,14 @@ def pytest_ignore_collect(collection_path: Path, config: Config) -> Optional[boo
         "collect_ignore_glob", path=collection_path.parent, rootpath=config.rootpath
     )
     ignore_globs = ignore_globs or []
-    excludeglobopt = config.getoption("ignore_glob")
-    if excludeglobopt:
+    if excludeglobopt := config.getoption("ignore_glob"):
         ignore_globs.extend(absolutepath(x) for x in excludeglobopt)
 
     if any(fnmatch.fnmatch(str(collection_path), str(glob)) for glob in ignore_globs):
         return True
 
     allow_in_venv = config.getoption("collect_in_virtualenv")
-    if not allow_in_venv and _in_venv(collection_path):
-        return True
-    return None
+    return True if not allow_in_venv and _in_venv(collection_path) else None
 
 
 def pytest_collection_modifyitems(items: List[nodes.Item], config: Config) -> None:
@@ -541,16 +534,15 @@ class Session(nodes.FSCollector):
             self.config.getoption("importmode"),
             rootpath=self.config.rootpath,
         )
-        remove_mods = pm._conftest_plugins.difference(my_conftestmodules)
-        if remove_mods:
-            # One or more conftests are not in use at this fspath.
-            from .config.compat import PathAwareHookProxy
-
-            proxy = PathAwareHookProxy(FSHookProxy(pm, remove_mods))
-        else:
+        if not (
+            remove_mods := pm._conftest_plugins.difference(my_conftestmodules)
+        ):
             # All plugins are active for this fspath.
-            proxy = self.config.hook
-        return proxy
+            return self.config.hook
+        # One or more conftests are not in use at this fspath.
+        from .config.compat import PathAwareHookProxy
+
+        return PathAwareHookProxy(FSHookProxy(pm, remove_mods))
 
     def _recurse(self, direntry: "os.DirEntry[str]") -> bool:
         if direntry.name == "__pycache__":
@@ -560,9 +552,7 @@ class Session(nodes.FSCollector):
         if ihook.pytest_ignore_collect(collection_path=fspath, config=self.config):
             return False
         norecursepatterns = self.config.getini("norecursedirs")
-        if any(fnmatch_ex(pat, fspath) for pat in norecursepatterns):
-            return False
-        return True
+        return not any(fnmatch_ex(pat, fspath) for pat in norecursepatterns)
 
     def _collectfile(
         self, fspath: Path, handle_dupes: bool = True
@@ -573,9 +563,10 @@ class Session(nodes.FSCollector):
             fspath, fspath.is_dir(), fspath.exists(), fspath.is_symlink()
         )
         ihook = self.gethookproxy(fspath)
-        if not self.isinitpath(fspath):
-            if ihook.pytest_ignore_collect(collection_path=fspath, config=self.config):
-                return ()
+        if not self.isinitpath(fspath) and ihook.pytest_ignore_collect(
+            collection_path=fspath, config=self.config
+        ):
+            return ()
 
         if handle_dupes:
             keepduplicates = self.config.getoption("keepduplicates")
@@ -651,10 +642,9 @@ class Session(nodes.FSCollector):
                 raise UsageError(*errors)
             if not genitems:
                 items = rep.result
-            else:
-                if rep.passed:
-                    for node in rep.result:
-                        self.items.extend(self.genitems(node))
+            elif rep.passed:
+                for node in rep.result:
+                    self.items.extend(self.genitems(node))
 
             self.config.pluginmanager.check_pending()
             hook.pytest_collection_modifyitems(
@@ -696,8 +686,9 @@ class Session(nodes.FSCollector):
                     if parent.is_dir():
                         pkginit = parent / "__init__.py"
                         if pkginit.is_file() and pkginit not in node_cache1:
-                            col = self._collectfile(pkginit, handle_dupes=False)
-                            if col:
+                            if col := self._collectfile(
+                                pkginit, handle_dupes=False
+                            ):
                                 if isinstance(col[0], Package):
                                     pkg_roots[str(parent)] = col[0]
                                 node_cache1[col[0].path] = [col[0]]
@@ -768,16 +759,14 @@ class Session(nodes.FSCollector):
                             rep = collect_one_node(node)
                             matchnodes_cache[key] = rep
                         if rep.passed:
-                            submatchnodes = []
-                            for r in rep.result:
-                                # TODO: Remove parametrized workaround once collection structure contains
-                                # parametrization.
+                            if submatchnodes := [
+                                r
+                                for r in rep.result
                                 if (
                                     r.name == matchnames[0]
                                     or r.name.split("[")[0] == matchnames[0]
-                                ):
-                                    submatchnodes.append(r)
-                            if submatchnodes:
+                                )
+                            ]:
                                 work.append((submatchnodes, matchnames[1:]))
                         else:
                             # Report collection failures here to avoid failing to run some test
@@ -870,7 +859,7 @@ def resolve_collection_argument(
     If the path doesn't exist, raise UsageError.
     If the path is a directory and selection parts are present, raise UsageError.
     """
-    base, squacket, rest = str(arg).partition("[")
+    base, squacket, rest = arg.partition("[")
     strpath, *parts = base.split("::")
     if parts:
         parts[-1] = f"{parts[-1]}{squacket}{rest}"

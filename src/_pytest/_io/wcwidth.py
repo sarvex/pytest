@@ -35,10 +35,7 @@ def wcwidth(c: str) -> int:
         return 0
 
     # Full/Wide east asian characters.
-    if unicodedata.east_asian_width(c) in ("F", "W"):
-        return 2
-
-    return 1
+    return 2 if unicodedata.east_asian_width(c) in ("F", "W") else 1
 
 
 def wcswidth(s: str) -> int:

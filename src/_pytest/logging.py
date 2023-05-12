@@ -160,10 +160,7 @@ class PercentStyleMultiline(logging.PercentStyle):
         if auto_indent_option is None:
             return 0
         elif isinstance(auto_indent_option, bool):
-            if auto_indent_option:
-                return -1
-            else:
-                return 0
+            return -1 if auto_indent_option else 0
         elif isinstance(auto_indent_option, int):
             return int(auto_indent_option)
         elif isinstance(auto_indent_option, str):
@@ -218,7 +215,10 @@ def pytest_addoption(parser: Parser) -> None:
 
     def add_option_ini(option, dest, default=None, type=None, **kwargs):
         parser.addini(
-            dest, default=default, type=type, help="default value for " + option
+            dest,
+            default=default,
+            type=type,
+            help=f"default value for {option}",
         )
         group.addoption(option, dest=dest, **kwargs)
 
@@ -517,9 +517,7 @@ def get_log_level_for_setting(config: Config, *setting_names: str) -> Optional[i
     except ValueError as e:
         # Python logging does not recognise this as a logging level
         raise UsageError(
-            "'{}' is not recognized as a logging level name for "
-            "'{}'. Please consider passing the "
-            "logging level num instead.".format(log_level, setting_name)
+            f"'{log_level}' is not recognized as a logging level name for '{setting_name}'. Please consider passing the logging level num instead."
         ) from e
 
 
@@ -627,8 +625,7 @@ class LoggingPlugin:
 
         # https://github.com/python/mypy/issues/11193
         stream: io.TextIOWrapper = fpath.open(mode="w", encoding="UTF-8")  # type: ignore[assignment]
-        old_stream = self.log_file_handler.setStream(stream)
-        if old_stream:
+        if old_stream := self.log_file_handler.setStream(stream):
             old_stream.close()
 
     def _log_cli_enabled(self):
@@ -640,11 +637,7 @@ class LoggingPlugin:
             return False
 
         terminal_reporter = self._config.pluginmanager.get_plugin("terminalreporter")
-        if terminal_reporter is None:
-            # terminal reporter is disabled e.g. by pytest-xdist.
-            return False
-
-        return True
+        return terminal_reporter is not None
 
     @hookimpl(hookwrapper=True, tryfirst=True)
     def pytest_sessionstart(self) -> Generator[None, None, None]:
@@ -803,7 +796,7 @@ class _LiveLoggingStreamHandler(logging_StreamHandler):
                     self._test_outcome_written = True
                     self.stream.write("\n")
             if not self._section_name_shown and self._when:
-                self.stream.section("live log " + self._when, sep="-", bold=True)
+                self.stream.section(f"live log {self._when}", sep="-", bold=True)
                 self._section_name_shown = True
             super().emit(record)
 

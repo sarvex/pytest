@@ -108,11 +108,7 @@ def test_hookproxy_warnings_for_pathlib(tmp_path, hooktype, request):
     path = legacy_path(tmp_path)
 
     PATH_WARN_MATCH = r".*path: py\.path\.local\) argument is deprecated, please use \(collection_path: pathlib\.Path.*"
-    if hooktype == "ihook":
-        hooks = request.node.ihook
-    else:
-        hooks = request.config.hook
-
+    hooks = request.node.ihook if hooktype == "ihook" else request.config.hook
     with pytest.warns(PytestDeprecationWarning, match=PATH_WARN_MATCH) as r:
         l1 = sys._getframe().f_lineno
         hooks.pytest_ignore_collect(

@@ -101,7 +101,7 @@ class Testdir:
             # This ext arguments is likely user error, but since testdir has
             # allowed this, we will prepend "." as a workaround to avoid breaking
             # testdir usage that worked before
-            ext = "." + ext
+            ext = f".{ext}"
         return legacy_path(self._pytester.makefile(ext, *args, **kwargs))
 
     def makeconftest(self, source) -> LEGACY_PATH:
@@ -384,14 +384,13 @@ def Session_stardir(self: Session) -> LEGACY_PATH:
 def Config__getini_unknown_type(
     self, name: str, type: str, value: Union[str, List[str]]
 ):
-    if type == "pathlist":
-        # TODO: This assert is probably not valid in all cases.
-        assert self.inipath is not None
-        dp = self.inipath.parent
-        input_values = shlex.split(value) if isinstance(value, str) else value
-        return [legacy_path(str(dp / x)) for x in input_values]
-    else:
+    if type != "pathlist":
         raise ValueError(f"unknown configuration type: {type}", value)
+    # TODO: This assert is probably not valid in all cases.
+    assert self.inipath is not None
+    dp = self.inipath.parent
+    input_values = shlex.split(value) if isinstance(value, str) else value
+    return [legacy_path(str(dp / x)) for x in input_values]
 
 
 def Node_fspath(self: Node) -> LEGACY_PATH:
